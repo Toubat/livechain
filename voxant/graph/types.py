@@ -1,6 +1,10 @@
-from typing import TypeVar
+from __future__ import annotations
 
-from pydantic import BaseModel
+from typing import Optional, TypeVar
+
+from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.store.base import BaseStore
+from pydantic import BaseModel, Field
 from typing_extensions import ParamSpec
 
 TState = TypeVar("TState", bound=BaseModel)
@@ -10,3 +14,14 @@ TModel = TypeVar("TModel", bound=BaseModel)
 
 P = ParamSpec("P")
 T = TypeVar("T")
+
+
+class LangGraphInjectable(BaseModel):
+    """Injectable dependencies for LangGraph."""
+
+    store: Optional[BaseStore] = None
+    checkpointer: Optional[BaseCheckpointSaver] = None
+
+    @classmethod
+    def create_empty(cls) -> LangGraphInjectable:
+        return cls()

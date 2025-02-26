@@ -5,13 +5,15 @@ import logging
 import uuid
 from abc import ABC, abstractmethod
 from enum import Enum, auto
-from typing import Awaitable, Callable, Coroutine, Dict, Generic, Optional, Type
+from typing import Awaitable, Callable, Dict, Generic, Optional, Type
 
-from langchain_core.runnables import Runnable
+from langchain_core.runnables import Runnable, RunnableConfig
+from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.store.base import BaseStore
 from pydantic import ValidationError
 
 from voxant.graph.constants import SENTINEL
-from voxant.graph.types import TModel
+from voxant.graph.types import LangGraphInjectable, TModel
 
 logger = logging.getLogger(__name__)
 
@@ -37,11 +39,27 @@ class BaseSignalRoutine(Generic[TModel], ABC):
         self._name = name or self._routine.__name__
 
     @abstractmethod
-    def _create_routine_runnable(self) -> Runnable[TModel, None]:
+    def _create_routine_runnable(
+        self,
+        checkpointer: Optional[BaseCheckpointSaver],
+        store: Optional[BaseStore],
+    ) -> Runnable[TModel, None]:
         raise NotImplementedError
 
-    def create_runner(self) -> SignalRoutineRunner[TModel]:
-        routine_runnable = self._create_routine_runnable()
+    def create_routine_runnable(
+        self,
+        injectable: LangGraphInjectable | None = None,
+    ) -> Runnable[TModel, None]:
+        injectable = injectable or LangGraphInjectable.create_empty()
+        return self._create_routine_runnable(injectable.checkpointer, injectable.store)
+
+    def create_runner(
+        self,
+        config: RunnableConfig | None = None,
+        injectable: LangGraphInjectable | None = None,
+    ) -> SignalRoutineRunner[TModel]:
+        injectable = injectable or LangGraphInjectable.create_empty()
+        routine_runnable = self.create_routine_runnable(injectable)
 
         runner_cls: Optional[Type[SignalRoutineRunner[TModel]]] = {
             SignalStrategy.INTERRUPT: InterruptableSignalRoutineRunner,
@@ -52,7 +70,13 @@ class BaseSignalRoutine(Generic[TModel], ABC):
         if runner_cls is None:
             raise ValueError(f"Invalid signal routine strategy: {self._strategy}")
 
-        return runner_cls(self._schema, routine_runnable, self._strategy, self._name)
+        return runner_cls(
+            self._schema,
+            routine_runnable,
+            self._strategy,
+            config,
+            self._name,
+        )
 
 
 class SignalRoutineRunner(Generic[TModel], ABC):
@@ -62,12 +86,14 @@ class SignalRoutineRunner(Generic[TModel], ABC):
         schema: Type[TModel],
         runnable: Runnable[TModel, None],
         strategy: SignalStrategy,
+        config: RunnableConfig,
         name: Optional[str] = None,
     ):
         self._id = uuid.uuid4()
         self._schema = schema
         self._runnable = runnable
         self._strategy = strategy
+        self._config = config
         self._name = name
         self._signal_queue = asyncio.Queue()
 
@@ -116,7 +142,9 @@ class InterruptableSignalRoutineRunner(SignalRoutineRunner[TModel]):
                 break
 
             self._try_cancel_current_task()
-            self._current_task = asyncio.create_task(self._runnable.ainvoke(signal))
+            self._current_task = asyncio.create_task(
+                self._runnable.ainvoke(signal, config=self._config)
+            )
 
         self._try_cancel_current_task()
         logger.info(f"Routine runner {self._name} of id {self.routine_id} stopped")
@@ -146,7 +174,9 @@ class ParallelSignalRoutineRunner(SignalRoutineRunner[TModel]):
                 break
 
             task_id = uuid.uuid4()
-            task = asyncio.create_task(self._runnable.ainvoke(signal))
+            task = asyncio.create_task(
+                self._runnable.ainvoke(signal, config=self._config)
+            )
             task.add_done_callback(lambda _: self._on_task_done(task_id))
             self._tasks[task_id] = task
 
@@ -178,7 +208,9 @@ class FifoSignalRoutineRunner(SignalRoutineRunner[TModel]):
                 break
 
             try:
-                self._current_task = asyncio.create_task(self._runnable.ainvoke(signal))
+                self._current_task = asyncio.create_task(
+                    self._runnable.ainvoke(signal, config=self._config)
+                )
                 await self._current_task
             except asyncio.CancelledError:
                 pass
