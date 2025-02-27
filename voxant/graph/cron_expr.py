@@ -74,11 +74,11 @@ class Exp(CronExpr):
         return next_tick
 
 
-def interval(seconds: float) -> Interval:
+def interval(seconds: float) -> CronExpr:
     return Interval(seconds=seconds)
 
 
-def linear(base: float, step: float, max_interval: float) -> Linear:
+def linear(base: float, step: float, max_interval: float) -> CronExpr:
     return Linear(
         base_seconds=base,
         step_seconds=step,
@@ -86,7 +86,7 @@ def linear(base: float, step: float, max_interval: float) -> Linear:
     )
 
 
-def exp(base: float, exponent: float, max_interval: float) -> Exp:
+def exp(base: float, exponent: float, max_interval: float) -> CronExpr:
     return Exp(
         base_seconds=base,
         exponent=exponent,

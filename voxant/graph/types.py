@@ -48,6 +48,11 @@ class Effect(Protocol, Generic[TState_contra]):
     ) -> Awaitable[Any]: ...
 
 
+class CronEffect(Protocol):
+
+    def __call__(self) -> Awaitable[Any]: ...
+
+
 class LangGraphInjectable(BaseModel):
     """Injectable dependencies for LangGraph."""
 

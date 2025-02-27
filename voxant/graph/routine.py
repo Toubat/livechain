@@ -13,6 +13,7 @@ from langgraph.types import RetryPolicy
 from pydantic import TypeAdapter, ValidationError
 
 from voxant.graph.constants import SENTINEL
+from voxant.graph.cron_expr import CronExpr
 from voxant.graph.func import step
 from voxant.graph.types import (
     CronSignal,
@@ -151,6 +152,29 @@ class ReactiveSignalRoutine(BaseSignalRoutine[TModel], Generic[TModel, TState, T
     @property
     def cond(self) -> WatchedValue[TState, T]:
         return self._cond
+
+
+class CronSignalRoutine(BaseSignalRoutine[CronSignal]):
+
+    def __init__(
+        self,
+        schema: Type[CronSignal],
+        routine: Callable[[CronSignal], Awaitable[Any]],
+        cron_expr: CronExpr,
+        strategy: Optional[SignalStrategy] = None,
+        name: Optional[str] = None,
+        retry: Optional[RetryPolicy] = None,
+    ):
+        super().__init__(schema, routine, strategy, name, retry)
+        self._cron_expr = cron_expr
+
+    @property
+    def routine_type(self) -> SignalRoutineType:
+        return SignalRoutineType.CRON
+
+    @property
+    def cron_expr(self) -> CronExpr:
+        return self._cron_expr
 
 
 class SignalRoutineRunner(Generic[TModel], ABC):

@@ -2,13 +2,17 @@ from typing import Callable, Optional, Type
 
 from langgraph.types import RetryPolicy
 
+from voxant.graph import cron_expr
+from voxant.graph.cron_expr import CronExpr
 from voxant.graph.routine import (
+    CronSignalRoutine,
     EventSignalRoutine,
     Mode,
     ReactiveSignalRoutine,
     SignalStrategy,
 )
 from voxant.graph.types import (
+    CronEffect,
     CronSignal,
     Effect,
     StateChange,
@@ -68,3 +72,30 @@ def reactive(
         )
 
     return reactive_decorator
+
+
+def cron(
+    cron_expr: CronExpr,
+    *,
+    strategy: Optional[SignalStrategy],
+    name: Optional[str] = None,
+    retry: Optional[RetryPolicy] = None,
+) -> Callable[[CronEffect], CronSignalRoutine]:
+
+    def cron_decorator(
+        effect: CronEffect,
+    ) -> CronSignalRoutine:
+
+        async def effect_wrapper(signal: CronSignal):
+            return await effect()
+
+        return CronSignalRoutine(
+            schema=CronSignal,
+            cron_expr=cron_expr,
+            routine=effect_wrapper,
+            strategy=strategy,
+            name=name,
+            retry=retry,
+        )
+
+    return cron_decorator
