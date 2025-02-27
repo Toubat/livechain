@@ -5,15 +5,27 @@ import logging
 import uuid
 from abc import ABC, abstractmethod
 from enum import Enum, auto
-from typing import Awaitable, Callable, Dict, Generic, Optional, Type
+from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Type
 
 from langchain_core.runnables import Runnable, RunnableConfig
 from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.func import entrypoint
 from langgraph.store.base import BaseStore
-from pydantic import ValidationError
+from langgraph.types import RetryPolicy
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from voxant.graph.constants import SENTINEL
-from voxant.graph.types import LangGraphInjectable, TModel
+from voxant.graph.func import step
+from voxant.graph.routine import SignalRoutine
+from voxant.graph.types import (
+    CronSignal,
+    LangGraphInjectable,
+    StateChange,
+    T,
+    TModel,
+    TState,
+    WatchedValue,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +36,12 @@ class SignalStrategy(Enum):
     QUEUE = auto()  # Queue the new signal until the previous one finishes
 
 
+class SignalRoutineType(Enum):
+    EVENT = auto()
+    REACTIVE = auto()
+    CRON = auto()
+
+
 class BaseSignalRoutine(Generic[TModel], ABC):
 
     def __init__(
@@ -32,26 +50,34 @@ class BaseSignalRoutine(Generic[TModel], ABC):
         routine: Callable[[TModel], Awaitable[None]],
         strategy: SignalStrategy,
         name: Optional[str] = None,
+        retry: Optional[RetryPolicy] = None,
     ):
         self._schema = schema
         self._routine = routine
         self._strategy = strategy
         self._name = name or self._routine.__name__
+        self._retry = retry
 
+    @property
     @abstractmethod
-    def _create_routine_runnable(
-        self,
-        checkpointer: Optional[BaseCheckpointSaver],
-        store: Optional[BaseStore],
-    ) -> Runnable[TModel, None]:
+    def routine_type(self) -> SignalRoutineType:
         raise NotImplementedError
 
     def create_routine_runnable(
         self,
         injectable: LangGraphInjectable | None = None,
-    ) -> Runnable[TModel, None]:
+    ) -> Runnable[TModel, Any]:
         injectable = injectable or LangGraphInjectable.create_empty()
-        return self._create_routine_runnable(injectable.checkpointer, injectable.store)
+
+        @step(name=self._name, retry=self._retry)
+        async def routine_step(signal: TModel):
+            return await self._routine(signal)
+
+        @entrypoint(checkpointer=injectable.checkpointer, store=injectable.store)
+        async def routine_entrypoint(signal: TModel):
+            return await routine_step(signal)
+
+        return routine_entrypoint
 
     def create_runner(
         self,
@@ -77,6 +103,36 @@ class BaseSignalRoutine(Generic[TModel], ABC):
             config,
             self._name,
         )
+
+
+class EventSignalRoutine(BaseSignalRoutine[TModel]):
+
+    @property
+    def routine_type(self) -> SignalRoutineType:
+        return SignalRoutineType.EVENT
+
+
+class ReactiveSignalRoutine(BaseSignalRoutine[TModel], Generic[TModel, TState, T]):
+
+    def __init__(
+        self,
+        schema: Type[TModel],
+        routine: Callable[[TModel], Awaitable[None]],
+        cond: WatchedValue[TState, T],
+        strategy: SignalStrategy,
+        name: Optional[str] = None,
+        retry: Optional[RetryPolicy] = None,
+    ):
+        super().__init__(schema, routine, strategy, name, retry)
+        self._cond = cond
+
+    @property
+    def routine_type(self) -> SignalRoutineType:
+        return SignalRoutineType.REACTIVE
+
+    @property
+    def cond(self) -> WatchedValue[TState, T]:
+        return self._cond
 
 
 class SignalRoutineRunner(Generic[TModel], ABC):
@@ -107,7 +163,8 @@ class SignalRoutineRunner(Generic[TModel], ABC):
 
     def recv(self, signal: TModel):
         try:
-            validated_signal = self._schema.model_validate(signal)
+            adapter = TypeAdapter(self._schema)
+            validated_signal = adapter.validate_python(signal)
             self._signal_queue.put_nowait(validated_signal)
         except ValidationError as e:
             logger.error(
