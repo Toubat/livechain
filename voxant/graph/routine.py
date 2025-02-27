@@ -137,7 +137,7 @@ class ReactiveSignalRoutine(BaseSignalRoutine[TModel], Generic[TModel, TState, T
         schema: Type[TModel],
         routine: Callable[[TModel], Awaitable[None]],
         cond: WatchedValue[TState, T],
-        strategy: SignalStrategy,
+        strategy: Optional[SignalStrategy] = None,
         name: Optional[str] = None,
         retry: Optional[RetryPolicy] = None,
     ):
