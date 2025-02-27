@@ -1,12 +1,11 @@
 from typing import Callable, Optional, Type
 
 from langgraph.types import RetryPolicy
-from pydantic import BaseModel
 
 from voxant.graph.routine import (
     EventSignalRoutine,
+    Mode,
     ReactiveSignalRoutine,
-    SignalRoutine,
     SignalStrategy,
 )
 from voxant.graph.types import (
@@ -24,7 +23,7 @@ from voxant.graph.types import (
 def subscribe(
     event_schema: Type[TModel],
     *,
-    strategy: SignalStrategy = SignalStrategy.PARALLEL,
+    strategy: Optional[SignalStrategy],
     name: Optional[str] = None,
     retry: Optional[RetryPolicy] = None,
 ) -> Callable[[Subscriber[TModel]], EventSignalRoutine[TModel]]:
@@ -47,7 +46,7 @@ def reactive(
     state_schema: Type[TState],
     cond: WatchedValue[TState, T],
     *,
-    strategy: SignalStrategy = SignalStrategy.PARALLEL,
+    strategy: Optional[SignalStrategy],
     name: Optional[str] = None,
     retry: Optional[RetryPolicy] = None,
 ) -> Callable[[Effect[TState]], ReactiveSignalRoutine[StateChange[TState], TState, T]]:

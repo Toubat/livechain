@@ -5,22 +5,18 @@ import logging
 import uuid
 from abc import ABC, abstractmethod
 from enum import Enum, auto
-from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Type
+from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Type, Union
 
 from langchain_core.runnables import Runnable, RunnableConfig
-from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.func import entrypoint
-from langgraph.store.base import BaseStore
 from langgraph.types import RetryPolicy
-from pydantic import BaseModel, TypeAdapter, ValidationError
+from pydantic import TypeAdapter, ValidationError
 
 from voxant.graph.constants import SENTINEL
 from voxant.graph.func import step
-from voxant.graph.routine import SignalRoutine
 from voxant.graph.types import (
     CronSignal,
     LangGraphInjectable,
-    StateChange,
     T,
     TModel,
     TState,
@@ -30,10 +26,27 @@ from voxant.graph.types import (
 logger = logging.getLogger(__name__)
 
 
-class SignalStrategy(Enum):
-    INTERRUPT = auto()  # Interrupt the previous running routine
-    PARALLEL = auto()  # Run the new signal in parallel
-    QUEUE = auto()  # Queue the new signal until the previous one finishes
+class Mode:
+
+    class Interrupt:
+        pass
+
+    class Parallel:
+        pass
+
+    class Queue:
+        pass
+
+    class Debounce:
+        delay: float
+
+
+SignalStrategy = Union[
+    Mode.Interrupt,
+    Mode.Parallel,
+    Mode.Queue,
+    Mode.Debounce,
+]
 
 
 class SignalRoutineType(Enum):
@@ -42,19 +55,23 @@ class SignalRoutineType(Enum):
     CRON = auto()
 
 
+def default_signal_strategy() -> Mode.Parallel:
+    return Mode.Parallel()
+
+
 class BaseSignalRoutine(Generic[TModel], ABC):
 
     def __init__(
         self,
         schema: Type[TModel],
         routine: Callable[[TModel], Awaitable[None]],
-        strategy: SignalStrategy,
+        strategy: Optional[SignalStrategy] = None,
         name: Optional[str] = None,
         retry: Optional[RetryPolicy] = None,
     ):
         self._schema = schema
         self._routine = routine
-        self._strategy = strategy
+        self._strategy = strategy or default_signal_strategy()
         self._name = name or self._routine.__name__
         self._retry = retry
 
@@ -88,10 +105,11 @@ class BaseSignalRoutine(Generic[TModel], ABC):
         routine_runnable = self.create_routine_runnable(injectable)
 
         runner_cls: Optional[Type[SignalRoutineRunner[TModel]]] = {
-            SignalStrategy.INTERRUPT: InterruptableSignalRoutineRunner,
-            SignalStrategy.PARALLEL: ParallelSignalRoutineRunner,
-            SignalStrategy.QUEUE: FifoSignalRoutineRunner,
-        }.get(self._strategy)
+            Mode.Interrupt: InterruptableSignalRoutineRunner,
+            Mode.Parallel: ParallelSignalRoutineRunner,
+            Mode.Queue: FifoSignalRoutineRunner,
+            Mode.Debounce: DebounceSignalRoutineRunner,
+        }.get(type(self._strategy))
 
         if runner_cls is None:
             raise ValueError(f"Invalid signal routine strategy: {self._strategy}")
@@ -187,10 +205,6 @@ class InterruptableSignalRoutineRunner(SignalRoutineRunner[TModel]):
 
         self._current_task: Optional[asyncio.Task] = None
 
-    def _try_cancel_current_task(self):
-        if self._current_task is not None and not self._current_task.done():
-            self._current_task.cancel()
-
     async def _start_routine_with_interrupts(self):
         while True:
             signal = await self._signal_queue.get()
@@ -198,12 +212,12 @@ class InterruptableSignalRoutineRunner(SignalRoutineRunner[TModel]):
             if signal is SENTINEL:
                 break
 
-            self._try_cancel_current_task()
+            try_cancel_asyncio_task(self._current_task)
             self._current_task = asyncio.create_task(
                 self._runnable.ainvoke(signal, config=self._config)
             )
 
-        self._try_cancel_current_task()
+        try_cancel_asyncio_task(self._current_task)
         logger.info(f"Routine runner {self._name} of id {self.routine_id} stopped")
 
     async def start(self):
@@ -223,6 +237,10 @@ class ParallelSignalRoutineRunner(SignalRoutineRunner[TModel]):
     def _on_task_done(self, task_id: uuid.UUID):
         self._tasks.pop(task_id)
 
+    def _cancel_tasks(self):
+        for task in self._tasks.values():
+            try_cancel_asyncio_task(task)
+
     async def _start_routine_in_parallel(self):
         while True:
             signal = await self._signal_queue.get()
@@ -237,6 +255,7 @@ class ParallelSignalRoutineRunner(SignalRoutineRunner[TModel]):
             task.add_done_callback(lambda _: self._on_task_done(task_id))
             self._tasks[task_id] = task
 
+        self._cancel_tasks()
         logger.info(f"Routine runner {self._name} of id {self.routine_id} stopped")
 
     async def start(self):
@@ -244,6 +263,7 @@ class ParallelSignalRoutineRunner(SignalRoutineRunner[TModel]):
 
     def stop(self):
         self._signal_queue.put_nowait(SENTINEL)
+        self._cancel_tasks()
 
 
 class FifoSignalRoutineRunner(SignalRoutineRunner[TModel]):
@@ -252,10 +272,6 @@ class FifoSignalRoutineRunner(SignalRoutineRunner[TModel]):
         super().__init__(*args, **kwargs)
 
         self._current_task: Optional[asyncio.Task] = None
-
-    def _try_cancel_current_task(self):
-        if self._current_task is not None and not self._current_task.done():
-            self._current_task.cancel()
 
     async def _start_routine_in_fifo(self):
         while True:
@@ -276,7 +292,7 @@ class FifoSignalRoutineRunner(SignalRoutineRunner[TModel]):
                     f"Routine runner {self._name} of id {self.routine_id} received an exception: {e}"
                 )
 
-        self._try_cancel_current_task()
+        try_cancel_asyncio_task(self._current_task)
         logger.info(f"Routine runner {self._name} of id {self.routine_id} stopped")
 
     async def start(self):
@@ -284,4 +300,42 @@ class FifoSignalRoutineRunner(SignalRoutineRunner[TModel]):
 
     def stop(self):
         self._signal_queue.put_nowait(SENTINEL)
-        self._try_cancel_current_task()
+        try_cancel_asyncio_task(self._current_task)
+
+
+class DebounceSignalRoutineRunner(SignalRoutineRunner[TModel]):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._current_task: Optional[asyncio.Task] = None
+        self._delay = self._strategy.delay  # type: ignore
+        self._counter: int = 0
+
+    async def _process_with_delay(self, signal: TModel, counter: int):
+        await asyncio.sleep(self._delay)
+        if counter == self._counter:
+            await self._runnable.ainvoke(signal, config=self._config)
+
+    async def start(self):
+        while True:
+            signal = await self._signal_queue.get()
+            self._counter += 1
+
+            if signal is SENTINEL:
+                break
+
+            try_cancel_asyncio_task(self._current_task)
+            self._current_task = asyncio.create_task(
+                self._process_with_delay(signal, self._counter)
+            )
+
+        try_cancel_asyncio_task(self._current_task)
+        logger.info(f"Routine runner {self._name} of id {self.routine_id} stopped")
+
+    def stop(self):
+        self._signal_queue.put_nowait(SENTINEL)
+        try_cancel_asyncio_task(self._current_task)
+
+
+def try_cancel_asyncio_task(task: Optional[asyncio.Task]):
+    if task is not None and not task.done():
+        task.cancel()
