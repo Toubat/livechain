@@ -1,4 +1,3 @@
-from pydantic import BaseModel
+from langgraph.func import entrypoint
 
-
-class Workflow(BaseModel): ...
+workflow = entrypoint

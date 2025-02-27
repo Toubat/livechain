@@ -14,7 +14,7 @@ from voxant.graph.routine import (
 from voxant.graph.types import (
     CronEffect,
     CronSignal,
-    Effect,
+    ReactiveEffect,
     StateChange,
     Subscriber,
     T,
@@ -53,10 +53,12 @@ def reactive(
     strategy: Optional[SignalStrategy],
     name: Optional[str] = None,
     retry: Optional[RetryPolicy] = None,
-) -> Callable[[Effect[TState]], ReactiveSignalRoutine[StateChange[TState], TState, T]]:
+) -> Callable[
+    [ReactiveEffect[TState]], ReactiveSignalRoutine[StateChange[TState], TState, T]
+]:
 
     def reactive_decorator(
-        effect: Effect[TState],
+        effect: ReactiveEffect[TState],
     ) -> ReactiveSignalRoutine[StateChange[TState], TState, T]:
 
         async def effect_wrapper(state_change: StateChange[TState]):

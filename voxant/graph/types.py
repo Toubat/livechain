@@ -41,7 +41,7 @@ class Subscriber(Protocol, Generic[TModel_contra]):
     def __call__(self, event: TModel_contra) -> Awaitable[Any]: ...
 
 
-class Effect(Protocol, Generic[TState_contra]):
+class ReactiveEffect(Protocol, Generic[TState_contra]):
 
     def __call__(
         self, old_state: TState_contra, new_state: TState_contra
