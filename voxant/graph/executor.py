@@ -22,9 +22,9 @@ class Workflow(BaseModel, Generic[TState, TConfig, TTopic]):
     def compile(
         self, state_schema: Type[TState], config_schema: Optional[Type[TConfig]] = None
     ) -> WorkflowExecutor:
-        pass
+        context = Context.from_state(state_schema)
 
 
 class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
 
-    pass
+    context: Context

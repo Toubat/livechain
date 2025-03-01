@@ -23,7 +23,7 @@ TModel_contra = TypeVar("TModel_contra", bound=BaseModel, contravariant=True)
 T_cov = TypeVar("T_cov", covariant=True)
 
 
-EntrypointFunc = Callable[[None], Awaitable[None]]
+EntrypointFunc = Callable[[], Awaitable[None]]
 
 
 class Event(BaseModel): ...
@@ -37,7 +37,8 @@ class StateChange(BaseModel, Generic[TState]):
     new_state: TState
 
 
-class CronSignal(BaseModel): ...
+class CronSignal(BaseModel):
+    cron_id: str
 
 
 class WatchedValue(Protocol, Generic[TState_contra, T_cov]):

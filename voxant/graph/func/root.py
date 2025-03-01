@@ -26,7 +26,7 @@ class Root(BaseModel):
         )
         @functools.wraps(self.entrypoint_func)
         async def entrypoint_wrapper(*args, **kwargs):
-            return await self.entrypoint_func(*args, **kwargs)
+            return await self.entrypoint_func()
 
         return entrypoint_wrapper
 

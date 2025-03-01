@@ -1,68 +1,55 @@
 import asyncio
-from typing import Any, Awaitable, Callable, Dict, Generic, Hashable, List, TypeVar
+from abc import abstractmethod
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Dict,
+    Generic,
+    Hashable,
+    List,
+    Type,
+    TypeVar,
+)
 
 from pydantic import BaseModel, PrivateAttr
-from typing_extensions import Protocol
 
 T = TypeVar("T")
 THashable = TypeVar("THashable", bound=Hashable)
 
 
-class Emitter(Protocol, Generic[T]):
+class Emitter(BaseModel, Generic[THashable, T]):
 
-    def emit(self, signal: T): ...
+    get_hash: Callable[[T], THashable]
 
-    def on(self, signal: T, callback: Callable[[T], Awaitable[Any]]) -> None: ...
-
-    def off(self, signal: T, callback: Callable[[T], Awaitable[Any]]) -> None: ...
-
-
-class SignalEmitter(BaseModel, Generic[THashable]):
-
-    _subscribers: Dict[THashable, List[Callable[[THashable], Awaitable[Any]]]] = (
-        PrivateAttr(default_factory=dict)
+    _subscribers: Dict[THashable, List[Callable[[T], Awaitable[Any]]]] = PrivateAttr(
+        default_factory=dict
     )
 
-    def emit(self, signal: THashable):
-        callbacks = self._subscribers.get(signal, [])
+    def emit(self, data: T):
+        data_hash = self.get_hash(data)
+        callbacks = self._subscribers.get(data_hash, [])
 
         if len(callbacks) == 0:
             return
 
         asyncio.gather(
-            *[callback(signal) for callback in callbacks], return_exceptions=True
+            *[callback(data) for callback in callbacks], return_exceptions=True
         )
 
-    def on(
-        self, signal: THashable, callback: Callable[[THashable], Awaitable[Any]]
-    ) -> None:
-        self._subscribers.setdefault(signal, []).append(callback)
+    def on(self, data: T, callback: Callable[[T], Awaitable[Any]]) -> None:
+        data_hash = self.get_hash(data)
+        self._subscribers.setdefault(data_hash, []).append(callback)
 
-    def off(
-        self, signal: THashable, callback: Callable[[THashable], Awaitable[Any]]
-    ) -> None:
-        self._subscribers[signal].remove(callback)
+    def off(self, data: T, callback: Callable[[T], Awaitable[Any]]) -> None:
+        data_hash = self.get_hash(data)
+        self._subscribers[data_hash].remove(callback)
 
 
-class GenericEmitter(BaseModel, Generic[T]):
+def emitter_factory(
+    get_hash: Callable[[T], THashable]
+) -> Callable[[], Emitter[THashable, T]]:
+    def create_emitter() -> Emitter[THashable, T]:
+        return Emitter(get_hash=get_hash)
 
-    callbacks: List[Callable[[T], Awaitable[Any]]] = PrivateAttr(default_factory=list)
-
-    def emit(self, event: T):
-        asyncio.gather(
-            *[callback(event) for callback in self.callbacks], return_exceptions=True
-        )
-
-    def on(self, callback: Callable[[T], Awaitable[Any]]) -> None:
-        self.callbacks.append(callback)
-
-    def off(self, callback: Callable[[T], Awaitable[Any]]) -> None:
-        self.callbacks.remove(callback)
-
-
-def create_signal_emitter() -> SignalEmitter:
-    return SignalEmitter()
-
-
-def create_generic_emitter() -> GenericEmitter:
-    return GenericEmitter()
+    return create_emitter
