@@ -35,7 +35,9 @@ class Context(BaseModel, Generic[TState]):
 
     _event_q: asyncio.Queue[Event] = PrivateAttr(default_factory=asyncio.Queue)
 
-    _state_change_q: asyncio.Queue[TState] = PrivateAttr(default_factory=asyncio.Queue)
+    _state_change_q: asyncio.Queue[StateChange[TState]] = PrivateAttr(
+        default_factory=asyncio.Queue
+    )
 
     _trigger_q: asyncio.Queue[None] = PrivateAttr(default_factory=asyncio.Queue)
 
@@ -62,22 +64,10 @@ class Context(BaseModel, Generic[TState]):
             data = await data_q.get()
             emitter.emit(data)
 
-    async def _start_listeners(self):
-        topic_task = self._listen(
-            self._topic_q,
-            self._topic_emitter,
+    async def start_listeners(self):
+        await asyncio.gather(
+            self._listen(self._topic_q, self._topic_emitter),
+            self._listen(self._event_q, self._event_emitter),
+            self._listen(self._state_change_q, self._state_change_emitter),
+            self._listen(self._trigger_q, self._trigger_emitter),
         )
-        event_task = self._listen(
-            self._event_q,
-            self._event_emitter,
-        )
-        state_change_task = self._listen(
-            self._state_change_q,
-            self._state_change_emitter,
-        )
-        trigger_task = self._listen(
-            self._trigger_q,
-            self._trigger_emitter,
-        )
-
-        await asyncio.gather(topic_task, event_task, state_change_task, trigger_task)
