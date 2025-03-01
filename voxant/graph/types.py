@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Awaitable, Generic, Optional, Protocol, TypeVar
+from typing import Any, Awaitable, Callable, Generic, Optional, Protocol, Type, TypeVar
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.store.base import BaseStore
@@ -21,6 +21,15 @@ T = TypeVar("T")
 TState_contra = TypeVar("TState_contra", bound=BaseModel, contravariant=True)
 TModel_contra = TypeVar("TModel_contra", bound=BaseModel, contravariant=True)
 T_cov = TypeVar("T_cov", covariant=True)
+
+
+EntrypointFunc = Callable[[None], Awaitable[None]]
+
+
+class Event(BaseModel): ...
+
+
+TEvent = TypeVar("TEvent", bound=Event)
 
 
 class StateChange(BaseModel, Generic[TState]):
@@ -56,8 +65,9 @@ class CronEffect(Protocol):
 class LangGraphInjectable(BaseModel):
     """Injectable dependencies for LangGraph."""
 
-    store: Optional[BaseStore] = None
     checkpointer: Optional[BaseCheckpointSaver] = None
+    store: Optional[BaseStore] = None
+    config_schema: Optional[Type[Any]] = None
 
     @classmethod
     def create_empty(cls) -> LangGraphInjectable:

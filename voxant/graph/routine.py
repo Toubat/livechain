@@ -19,6 +19,7 @@ from voxant.graph.types import (
     CronSignal,
     LangGraphInjectable,
     T,
+    TEvent,
     TModel,
     TState,
     WatchedValue,
@@ -124,7 +125,7 @@ class BaseSignalRoutine(Generic[TModel], ABC):
         )
 
 
-class EventSignalRoutine(BaseSignalRoutine[TModel]):
+class EventSignalRoutine(BaseSignalRoutine[TEvent]):
 
     @property
     def routine_type(self) -> SignalRoutineType:
