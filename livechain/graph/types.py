@@ -14,10 +14,8 @@ from typing import (
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.store.base import BaseStore
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict
 from typing_extensions import ParamSpec
-
-from livechain.graph.types import TState
 
 TState = TypeVar("TState", bound=BaseModel)
 TConfig = TypeVar("TConfig", bound=BaseModel)
@@ -88,6 +86,8 @@ class LangGraphInjectable(BaseModel):
     checkpointer: Optional[BaseCheckpointSaver] = None
     store: Optional[BaseStore] = None
     config_schema: Optional[Type[Any]] = None
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @classmethod
     def from_empty(cls) -> LangGraphInjectable:

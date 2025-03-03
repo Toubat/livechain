@@ -1,6 +1,6 @@
 from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Set
 
-from pydantic import BaseModel, PrivateAttr
+from pydantic import BaseModel, ConfigDict, PrivateAttr
 
 from livechain.graph.func.step import step_gather
 from livechain.graph.types import T, THashable
@@ -21,6 +21,8 @@ class Emitter(BaseModel, Generic[THashable, T]):
     _callback_to_hash: Dict[Callable[[T], Awaitable[Any]], Optional[THashable]] = (
         PrivateAttr(default_factory=dict)
     )
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def subscribe(
         self,
