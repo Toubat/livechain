@@ -2,7 +2,7 @@ from typing import Type
 from unittest.mock import AsyncMock
 
 import pytest
-
+from langgraph.graph import entrypoint
 from livechain.graph.emitter import Emitter, emitter_factory
 from livechain.graph.types import EventSignal
 
@@ -30,6 +30,8 @@ async def test_emitter(event_emitter):
     emitter.subscribe(callback=mock_callback)
 
     # Emit an event
+    @entrypoint()
+    def
     event = MockEvent(data=42)
     await emitter.emit(event)
 
