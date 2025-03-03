@@ -2,6 +2,13 @@ from typing import Any, Dict
 
 from langchain_core.runnables import RunnableConfig
 
+from voxant.graph.constants import CONF, CONFIG_KEY_CONTEXT
+from voxant.graph.context import Context
+
 
 def make_config(configurable: Dict[str, Any]) -> RunnableConfig:
-    return {"configurable": configurable}
+    return {CONF: configurable}
+
+
+def make_config_from_context(context: Context) -> RunnableConfig:
+    return make_config({CONFIG_KEY_CONTEXT: context})

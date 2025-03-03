@@ -1,25 +1,9 @@
-import asyncio
-from abc import abstractmethod
-from typing import (
-    Any,
-    Awaitable,
-    Callable,
-    Dict,
-    Generic,
-    Hashable,
-    List,
-    Optional,
-    Set,
-    Type,
-    TypeVar,
-    cast,
-    overload,
-)
+from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Set
 
 from pydantic import BaseModel, PrivateAttr
 
-T = TypeVar("T")
-THashable = TypeVar("THashable", bound=Hashable)
+from voxant.graph.func.step import step_gather
+from voxant.graph.types import T, THashable
 
 
 class Emitter(BaseModel, Generic[THashable, T]):
@@ -38,7 +22,7 @@ class Emitter(BaseModel, Generic[THashable, T]):
         PrivateAttr(default_factory=dict)
     )
 
-    def on(
+    def subscribe(
         self,
         data: Optional[THashable] = None,
         *,
@@ -54,16 +38,14 @@ class Emitter(BaseModel, Generic[THashable, T]):
         data_hash = self.get_hash(data)
         callbacks = self._subscribers.get(data_hash, [])
 
-        cb_tasks = [callback(data) for callback in callbacks]
-        default_cb_tasks = [callback(data) for callback in self._default_subscribers]
-        tasks = [*cb_tasks, *default_cb_tasks]
+        cb_tasks = [callback for callback in callbacks]
+        default_cb_tasks = [callback for callback in self._default_subscribers]
+        tasks = cb_tasks + default_cb_tasks
 
-        if len(tasks) == 0:
-            return
+        super_step = step_gather(*tasks)
+        return super_step(data)
 
-        asyncio.gather(*tasks, return_exceptions=True)
-
-    def off(self, callback: Callable[[T], Awaitable[Any]]) -> None:
+    def unsubscribe(self, callback: Callable[[T], Awaitable[Any]]) -> None:
         if callback not in self._callback_to_hash:
             return
 

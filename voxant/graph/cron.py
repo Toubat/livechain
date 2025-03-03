@@ -1,6 +1,9 @@
+import asyncio
 import time
 from abc import ABC, abstractmethod
 from datetime import datetime
+from heapq import heapify, heappop, heappush
+from typing import Dict
 
 from pydantic import BaseModel, Field, PrivateAttr
 
@@ -72,6 +75,28 @@ class Exp(CronExpr):
         )
         self._count += 1
         return next_tick
+
+
+class CronJobScheduler(BaseModel):
+
+    cron_jobs: Dict[str, CronExpr]
+
+    async def schedule(self):
+        cron_job_pq = [
+            (cron_expr.next_tick(), cron_id, cron_expr)
+            for cron_id, cron_expr in self.cron_jobs.items()
+        ]
+        heapify(cron_job_pq)
+
+        while True:
+            time = now()
+
+            if cron_job_pq[0][0] <= time:
+                _, cron_id, cron_expr = heappop(cron_job_pq)
+                yield cron_id
+                heappush(cron_job_pq, (cron_expr.next_tick(), cron_id, cron_expr))
+            else:
+                await asyncio.sleep(cron_job_pq[0][0] - time)
 
 
 def interval(seconds: float) -> CronExpr:

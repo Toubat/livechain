@@ -2,7 +2,7 @@ from typing import Callable, Optional, Type
 
 from langgraph.types import RetryPolicy
 
-from voxant.graph.cron_expr import CronExpr
+from voxant.graph.cron import CronExpr
 from voxant.graph.routine import (
     CronSignalRoutine,
     EventSignalRoutine,
@@ -58,11 +58,15 @@ def reactive(
     ) -> ReactiveSignalRoutine[TState, T]:
 
         async def effect_wrapper(state_change: StateChange[TState]):
+            if cond(state_change.old_state) == cond(state_change.new_state):
+                return
+
             return await effect(state_change.old_state, state_change.new_state)
 
         return ReactiveSignalRoutine(
             schema=StateChange[state_schema],
             routine=effect_wrapper,
+            state_schema=state_schema,
             cond=cond,
             strategy=strategy,
             name=name,

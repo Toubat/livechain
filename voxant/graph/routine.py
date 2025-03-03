@@ -13,7 +13,7 @@ from langgraph.types import RetryPolicy
 from pydantic import TypeAdapter, ValidationError
 
 from voxant.graph.constants import SENTINEL
-from voxant.graph.cron_expr import CronExpr
+from voxant.graph.cron import CronExpr
 from voxant.graph.func import step
 from voxant.graph.types import (
     CronSignal,
@@ -87,6 +87,10 @@ class BaseSignalRoutine(Generic[TModel], ABC):
     def schema(self) -> Type[TModel]:
         return self._schema
 
+    @property
+    def name(self) -> str:
+        return self._name
+
     def create_routine_runnable(
         self,
         injectable: LangGraphInjectable | None = None,
@@ -147,12 +151,14 @@ class ReactiveSignalRoutine(BaseSignalRoutine[StateChange[TState]], Generic[TSta
         self,
         schema: Type[StateChange[TState]],
         routine: Callable[[StateChange[TState]], Awaitable[None]],
+        state_schema: Type[TState],
         cond: WatchedValue[TState, T],
-        strategy: Optional[SignalStrategy] = None,
         name: Optional[str] = None,
+        strategy: Optional[SignalStrategy] = None,
         retry: Optional[RetryPolicy] = None,
     ):
         super().__init__(schema, routine, strategy, name, retry)
+        self._state_schema = state_schema
         self._cond = cond
 
     @property
@@ -162,6 +168,10 @@ class ReactiveSignalRoutine(BaseSignalRoutine[StateChange[TState]], Generic[TSta
     @property
     def cond(self) -> WatchedValue[TState, T]:
         return self._cond
+
+    @property
+    def state_schema(self) -> Type[TState]:
+        return self._state_schema
 
 
 class CronSignalRoutine(BaseSignalRoutine[CronSignal]):
@@ -195,7 +205,7 @@ class SignalRoutineRunner(Generic[TModel], ABC):
         runnable: Runnable[TModel, None],
         strategy: SignalStrategy,
         config: RunnableConfig,
-        name: Optional[str] = None,
+        name: str,
     ):
         self._id = uuid.uuid4()
         self._schema = schema
@@ -204,6 +214,14 @@ class SignalRoutineRunner(Generic[TModel], ABC):
         self._config = config
         self._name = name
         self._signal_queue = asyncio.Queue()
+
+    @property
+    def schema(self) -> Type[TModel]:
+        return self._schema
+
+    @property
+    def name(self) -> str:
+        return self._name
 
     @property
     def routine_id(self) -> str:

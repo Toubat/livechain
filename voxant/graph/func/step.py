@@ -1,5 +1,6 @@
+import asyncio
 import functools
-from typing import Awaitable, Callable, Optional
+from typing import Any, Awaitable, Callable, List, Literal, Optional, overload
 
 from langgraph.func import task
 from langgraph.pregel.call import SyncAsyncFuture
@@ -29,3 +30,22 @@ def step(
         return task_func  # type: ignore
 
     return step_wrapper
+
+
+def wrap_in_step(func: Callable[P, Awaitable[T]]) -> Callable[P, SyncAsyncFuture[T]]:
+    return step()(func)
+
+
+def step_gather(
+    *funcs: Callable[P, Awaitable[T]]
+) -> Callable[P, SyncAsyncFuture[List[T]]]:
+    substeps = [wrap_in_step(func) for func in funcs]
+
+    @step(name="gather")
+    async def gather_step(*args: P.args, **kwargs: P.kwargs) -> List[Any]:
+        return await asyncio.gather(
+            *[substep(*args, **kwargs) for substep in substeps],
+            return_exceptions=False,
+        )
+
+    return gather_step

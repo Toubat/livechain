@@ -4,7 +4,7 @@ from typing import Optional
 from langgraph.func import entrypoint
 from pydantic import BaseModel
 
-from voxant.graph.types import EntrypointFunc, LangGraphInjectable
+from voxant.graph.types import EntrypointFunc, LangGraphInjectable, TriggerSignal
 
 
 class Root(BaseModel):
@@ -22,7 +22,7 @@ class Root(BaseModel):
             config_schema=config_schema,
         )
         @functools.wraps(self.entrypoint_func)
-        async def entrypoint_wrapper(*args, **kwargs):
+        async def entrypoint_wrapper(trigger: TriggerSignal):
             return await self.entrypoint_func()
 
         return entrypoint_wrapper

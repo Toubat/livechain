@@ -1,6 +1,16 @@
 from __future__ import annotations
 
-from typing import Any, Awaitable, Callable, Generic, Optional, Protocol, Type, TypeVar
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Generic,
+    Hashable,
+    Optional,
+    Protocol,
+    Type,
+    TypeVar,
+)
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.store.base import BaseStore
@@ -13,6 +23,7 @@ TState = TypeVar("TState", bound=BaseModel)
 TConfig = TypeVar("TConfig", bound=BaseModel)
 TTopic = TypeVar("TTopic", bound=str)
 TModel = TypeVar("TModel", bound=BaseModel)
+THashable = TypeVar("THashable", bound=Hashable)
 
 P = ParamSpec("P")
 T = TypeVar("T")
@@ -39,6 +50,11 @@ class StateChange(BaseModel, Generic[TState]):
 
 class CronSignal(BaseModel):
     cron_id: str
+
+
+class TopicSignal(BaseModel):
+    topic: str
+    data: Any
 
 
 class TriggerSignal(BaseModel): ...
