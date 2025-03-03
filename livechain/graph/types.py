@@ -17,7 +17,7 @@ from langgraph.store.base import BaseStore
 from pydantic import BaseModel, Field
 from typing_extensions import ParamSpec
 
-from voxant.graph.types import TState
+from livechain.graph.types import TState
 
 TState = TypeVar("TState", bound=BaseModel)
 TConfig = TypeVar("TConfig", bound=BaseModel)

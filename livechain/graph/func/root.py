@@ -4,7 +4,7 @@ from typing import Optional
 from langgraph.func import entrypoint
 from pydantic import BaseModel
 
-from voxant.graph.types import EntrypointFunc, LangGraphInjectable, TriggerSignal
+from livechain.graph.types import EntrypointFunc, LangGraphInjectable, TriggerSignal
 
 
 class Root(BaseModel):

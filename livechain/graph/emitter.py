@@ -2,8 +2,8 @@ from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Set
 
 from pydantic import BaseModel, PrivateAttr
 
-from voxant.graph.func.step import step_gather
-from voxant.graph.types import T, THashable
+from livechain.graph.func.step import step_gather
+from livechain.graph.types import T, THashable
 
 
 class Emitter(BaseModel, Generic[THashable, T]):

@@ -2,8 +2,8 @@ from typing import Any, Dict
 
 from langchain_core.runnables import RunnableConfig
 
-from voxant.graph.constants import CONF, CONFIG_KEY_CONTEXT
-from voxant.graph.context import Context
+from livechain.graph.constants import CONF, CONFIG_KEY_CONTEXT
+from livechain.graph.context import Context
 
 
 def make_config(configurable: Dict[str, Any]) -> RunnableConfig:

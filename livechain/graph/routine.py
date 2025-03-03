@@ -12,10 +12,10 @@ from langgraph.func import entrypoint
 from langgraph.types import RetryPolicy
 from pydantic import TypeAdapter, ValidationError
 
-from voxant.graph.constants import SENTINEL
-from voxant.graph.cron import CronExpr
-from voxant.graph.func import step
-from voxant.graph.types import (
+from livechain.graph.constants import SENTINEL
+from livechain.graph.cron import CronExpr
+from livechain.graph.func import step
+from livechain.graph.types import (
     CronSignal,
     LangGraphInjectable,
     StateChange,

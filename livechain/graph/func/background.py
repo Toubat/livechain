@@ -2,14 +2,14 @@ from typing import Callable, Optional, Type
 
 from langgraph.types import RetryPolicy
 
-from voxant.graph.cron import CronExpr
-from voxant.graph.routine import (
+from livechain.graph.cron import CronExpr
+from livechain.graph.routine import (
     CronSignalRoutine,
     EventSignalRoutine,
     ReactiveSignalRoutine,
     SignalStrategy,
 )
-from voxant.graph.types import (
+from livechain.graph.types import (
     CronEffect,
     CronSignal,
     ReactiveEffect,

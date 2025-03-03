@@ -1,8 +1,8 @@
 [project]
-name = "voxant"
+name = "livechain"
 version = "0.1.0"
 description = ""
-authors = [{ name = "Your Name", email = "you@example.com" }]
+authors = [{ name = "Brian Yin", email = "toubatbrian@gmail.com" }]
 requires-python = "~=3.12"
 readme = "README.md"
 license = "MIT"

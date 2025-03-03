@@ -3,8 +3,8 @@ from typing import Any, Dict, Generic, Self, Type
 
 from pydantic import BaseModel, PrivateAttr
 
-from voxant.graph.emitter import Emitter, emitter_factory
-from voxant.graph.types import (
+from livechain.graph.emitter import Emitter, emitter_factory
+from livechain.graph.types import (
     CronSignal,
     EventSignal,
     StateChange,

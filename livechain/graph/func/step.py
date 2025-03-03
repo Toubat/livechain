@@ -6,7 +6,7 @@ from langgraph.func import task
 from langgraph.pregel.call import SyncAsyncFuture
 from langgraph.types import RetryPolicy
 
-from voxant.graph.types import P, T
+from livechain.graph.types import P, T
 
 
 def step(
