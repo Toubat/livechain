@@ -11,10 +11,7 @@ class Root(BaseModel):
 
     entrypoint_func: EntrypointFunc
 
-    name: Optional[str] = None
-
     def entrypoint(self, injectable: LangGraphInjectable):
-        name = self.name if self.name is not None else self.entrypoint_func.__name__
         checkpointer = injectable.checkpointer
         store = injectable.store
         config_schema = injectable.config_schema
@@ -31,8 +28,8 @@ class Root(BaseModel):
         return entrypoint_wrapper
 
 
-def root(name: Optional[str] = None):
+def root():
     def root_decorator(func: EntrypointFunc) -> Root:
-        return Root(entrypoint_func=func, name=name)
+        return Root(entrypoint_func=func)
 
     return root_decorator

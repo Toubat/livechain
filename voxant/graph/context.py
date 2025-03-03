@@ -3,7 +3,14 @@ from typing import Any, Dict, Generic, Self, Type
 
 from pydantic import BaseModel, PrivateAttr
 
-from voxant.graph.types import CronSignal, Event, StateChange, T, TState
+from voxant.graph.types import (
+    CronSignal,
+    EventSignal,
+    StateChange,
+    T,
+    TriggerSignal,
+    TState,
+)
 from voxant.utils.emitter import Emitter, THashable, emitter_factory
 
 
@@ -15,37 +22,35 @@ class Context(BaseModel, Generic[TState]):
         default_factory=emitter_factory(lambda x: x)
     )
 
-    _event_emitter: Emitter[Type[Event], Event] = PrivateAttr(
+    _event_emitter: Emitter[Type[EventSignal], EventSignal] = PrivateAttr(
         default_factory=emitter_factory(lambda x: type(x))
     )
 
-    _state_change_emitter: Emitter[None, StateChange[TState]] = PrivateAttr(
+    _effect_emitter: Emitter[None, StateChange[TState]] = PrivateAttr(
         default_factory=emitter_factory(lambda _: None)
     )
 
-    _cron_task_emitter: Emitter[str, CronSignal] = PrivateAttr(
+    _cron_job_emitter: Emitter[str, CronSignal] = PrivateAttr(
         default_factory=emitter_factory(lambda x: x.cron_id)
     )
 
-    _trigger_emitter: Emitter[None, None] = PrivateAttr(
+    _trigger_emitter: Emitter[None, TriggerSignal] = PrivateAttr(
         default_factory=emitter_factory(lambda _: None)
     )
 
-    _topic_q: asyncio.Queue[str] = PrivateAttr(default_factory=asyncio.Queue)
+    # _topic_q: asyncio.Queue[str] = PrivateAttr(default_factory=asyncio.Queue)
 
-    _event_q: asyncio.Queue[Event] = PrivateAttr(default_factory=asyncio.Queue)
+    # _event_q: asyncio.Queue[Event] = PrivateAttr(default_factory=asyncio.Queue)
 
-    _state_change_q: asyncio.Queue[StateChange[TState]] = PrivateAttr(
-        default_factory=asyncio.Queue
-    )
+    # _state_change_q: asyncio.Queue[StateChange[TState]] = PrivateAttr(
+    #     default_factory=asyncio.Queue
+    # )
 
-    _trigger_q: asyncio.Queue[None] = PrivateAttr(default_factory=asyncio.Queue)
+    # _cron_task_q: asyncio.Queue[CronSignal] = PrivateAttr(default_factory=asyncio.Queue)
 
-    _cron_task_q: asyncio.Queue[str] = PrivateAttr(default_factory=asyncio.Queue)
-
-    @classmethod
-    def from_state(cls, state: Type[TState]) -> Self:
-        return cls(state_schema=state)
+    # _trigger_q: asyncio.Queue[TriggerSignal] = PrivateAttr(
+    #     default_factory=asyncio.Queue
+    # )
 
     async def mutate_state(self, state_patch: Dict[str, Any]):
         pass
@@ -53,21 +58,41 @@ class Context(BaseModel, Generic[TState]):
     async def channel_send(self, topic: str):
         pass
 
-    async def emit_event(self, event: Event):
+    async def emit_event(self, event: EventSignal):
         pass
 
     async def trigger_workflow(self):
         pass
 
-    async def _listen(self, data_q: asyncio.Queue[T], emitter: Emitter[THashable, T]):
-        while True:
-            data = await data_q.get()
-            emitter.emit(data)
+    @property
+    def events(self):
+        return self._event_emitter
 
-    async def start_listeners(self):
-        await asyncio.gather(
-            self._listen(self._topic_q, self._topic_emitter),
-            self._listen(self._event_q, self._event_emitter),
-            self._listen(self._state_change_q, self._state_change_emitter),
-            self._listen(self._trigger_q, self._trigger_emitter),
-        )
+    @property
+    def effects(self):
+        return self._effect_emitter
+
+    @property
+    def topics(self):
+        return self._topic_emitter
+
+    @property
+    def cron_jobs(self):
+        return self._cron_job_emitter
+
+    @property
+    def trigger(self):
+        return self._trigger_emitter
+
+    # async def _listen(self, data_q: asyncio.Queue[T], emitter: Emitter[THashable, T]):
+    #     while True:
+    #         data = await data_q.get()
+    #         emitter.emit(data)
+
+    # async def start_listeners(self):
+    #     await asyncio.gather(
+    #         self._listen(self._topic_q, self._topic_emitter),
+    #         self._listen(self._event_q, self._event_emitter),
+    #         self._listen(self._state_change_q, self._state_change_emitter),
+    #         self._listen(self._trigger_q, self._trigger_emitter),
+    #     )

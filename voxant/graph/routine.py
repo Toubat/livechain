@@ -18,6 +18,7 @@ from voxant.graph.func import step
 from voxant.graph.types import (
     CronSignal,
     LangGraphInjectable,
+    StateChange,
     T,
     TEvent,
     TModel,
@@ -82,17 +83,25 @@ class BaseSignalRoutine(Generic[TModel], ABC):
     def routine_type(self) -> SignalRoutineType:
         raise NotImplementedError
 
+    @property
+    def schema(self) -> Type[TModel]:
+        return self._schema
+
     def create_routine_runnable(
         self,
         injectable: LangGraphInjectable | None = None,
     ) -> Runnable[TModel, Any]:
-        injectable = injectable or LangGraphInjectable.create_empty()
+        injectable = injectable or LangGraphInjectable.from_empty()
 
         @step(name=self._name, retry=self._retry)
         async def routine_step(signal: TModel):
             return await self._routine(signal)
 
-        @entrypoint(checkpointer=injectable.checkpointer, store=injectable.store)
+        @entrypoint(
+            checkpointer=injectable.checkpointer,
+            store=injectable.store,
+            config_schema=injectable.config_schema,
+        )
         async def routine_entrypoint(signal: TModel):
             return await routine_step(signal)
 
@@ -103,7 +112,7 @@ class BaseSignalRoutine(Generic[TModel], ABC):
         config: RunnableConfig | None = None,
         injectable: LangGraphInjectable | None = None,
     ) -> SignalRoutineRunner[TModel]:
-        injectable = injectable or LangGraphInjectable.create_empty()
+        injectable = injectable or LangGraphInjectable.from_empty()
         routine_runnable = self.create_routine_runnable(injectable)
 
         runner_cls: Optional[Type[SignalRoutineRunner[TModel]]] = {
@@ -132,12 +141,12 @@ class EventSignalRoutine(BaseSignalRoutine[TEvent]):
         return SignalRoutineType.EVENT
 
 
-class ReactiveSignalRoutine(BaseSignalRoutine[TModel], Generic[TModel, TState, T]):
+class ReactiveSignalRoutine(BaseSignalRoutine[StateChange[TState]], Generic[TState, T]):
 
     def __init__(
         self,
-        schema: Type[TModel],
-        routine: Callable[[TModel], Awaitable[None]],
+        schema: Type[StateChange[TState]],
+        routine: Callable[[StateChange[TState]], Awaitable[None]],
         cond: WatchedValue[TState, T],
         strategy: Optional[SignalStrategy] = None,
         name: Optional[str] = None,
@@ -197,18 +206,18 @@ class SignalRoutineRunner(Generic[TModel], ABC):
         self._signal_queue = asyncio.Queue()
 
     @property
-    def routine_id(self) -> uuid.UUID:
-        return self._id
+    def routine_id(self) -> str:
+        return str(self._id)
 
     @property
     def strategy(self) -> SignalStrategy:
         return self._strategy
 
-    def recv(self, signal: TModel):
+    async def __call__(self, signal: TModel):
         try:
             adapter = TypeAdapter(self._schema)
             validated_signal = adapter.validate_python(signal)
-            self._signal_queue.put_nowait(validated_signal)
+            await self._signal_queue.put(validated_signal)
         except ValidationError as e:
             logger.error(
                 f"Routine runner {self._name} of id {self.routine_id} received invalid data: {e}"

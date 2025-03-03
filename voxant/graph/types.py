@@ -26,10 +26,10 @@ T_cov = TypeVar("T_cov", covariant=True)
 EntrypointFunc = Callable[[], Awaitable[None]]
 
 
-class Event(BaseModel): ...
+class EventSignal(BaseModel): ...
 
 
-TEvent = TypeVar("TEvent", bound=Event)
+TEvent = TypeVar("TEvent", bound=EventSignal)
 
 
 class StateChange(BaseModel, Generic[TState]):
@@ -39,6 +39,9 @@ class StateChange(BaseModel, Generic[TState]):
 
 class CronSignal(BaseModel):
     cron_id: str
+
+
+class TriggerSignal(BaseModel): ...
 
 
 class WatchedValue(Protocol, Generic[TState_contra, T_cov]):
@@ -71,5 +74,14 @@ class LangGraphInjectable(BaseModel):
     config_schema: Optional[Type[Any]] = None
 
     @classmethod
-    def create_empty(cls) -> LangGraphInjectable:
+    def from_empty(cls) -> LangGraphInjectable:
         return cls()
+
+    @classmethod
+    def from_values(
+        cls,
+        checkpointer: Optional[BaseCheckpointSaver],
+        store: Optional[BaseStore],
+        config_schema: Optional[Type[Any]],
+    ) -> LangGraphInjectable:
+        return cls(checkpointer=checkpointer, store=store, config_schema=config_schema)

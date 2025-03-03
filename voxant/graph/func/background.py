@@ -2,12 +2,10 @@ from typing import Callable, Optional, Type
 
 from langgraph.types import RetryPolicy
 
-from voxant.graph import cron_expr
 from voxant.graph.cron_expr import CronExpr
 from voxant.graph.routine import (
     CronSignalRoutine,
     EventSignalRoutine,
-    Mode,
     ReactiveSignalRoutine,
     SignalStrategy,
 )
@@ -18,23 +16,23 @@ from voxant.graph.types import (
     StateChange,
     Subscriber,
     T,
-    TModel,
+    TEvent,
     TState,
     WatchedValue,
 )
 
 
 def subscribe(
-    event_schema: Type[TModel],
+    event_schema: Type[TEvent],
     *,
     strategy: Optional[SignalStrategy],
     name: Optional[str] = None,
     retry: Optional[RetryPolicy] = None,
-) -> Callable[[Subscriber[TModel]], EventSignalRoutine[TModel]]:
+) -> Callable[[Subscriber[TEvent]], EventSignalRoutine[TEvent]]:
 
     def subscribe_decorator(
-        subscriber: Subscriber[TModel],
-    ) -> EventSignalRoutine[TModel]:
+        subscriber: Subscriber[TEvent],
+    ) -> EventSignalRoutine[TEvent]:
         return EventSignalRoutine(
             schema=event_schema,
             routine=subscriber,
@@ -53,13 +51,11 @@ def reactive(
     strategy: Optional[SignalStrategy],
     name: Optional[str] = None,
     retry: Optional[RetryPolicy] = None,
-) -> Callable[
-    [ReactiveEffect[TState]], ReactiveSignalRoutine[StateChange[TState], TState, T]
-]:
+) -> Callable[[ReactiveEffect[TState]], ReactiveSignalRoutine[TState, T]]:
 
     def reactive_decorator(
         effect: ReactiveEffect[TState],
-    ) -> ReactiveSignalRoutine[StateChange[TState], TState, T]:
+    ) -> ReactiveSignalRoutine[TState, T]:
 
         async def effect_wrapper(state_change: StateChange[TState]):
             return await effect(state_change.old_state, state_change.new_state)
