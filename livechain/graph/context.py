@@ -7,6 +7,7 @@ from livechain.graph.emitter import Emitter, emitter_factory
 from livechain.graph.types import (
     CronSignal,
     EventSignal,
+    ReactiveSignal,
     StateChange,
     T,
     TopicSignal,
@@ -27,8 +28,8 @@ class Context(BaseModel, Generic[TState]):
         default_factory=emitter_factory(lambda x: type(x))
     )
 
-    _effect_emitter: Emitter[None, StateChange[TState]] = PrivateAttr(
-        default_factory=emitter_factory(lambda _: None)
+    _effect_emitter: Emitter[str, ReactiveSignal[TState]] = PrivateAttr(
+        default_factory=emitter_factory(lambda x: x.reactive_id)
     )
 
     _cron_job_emitter: Emitter[str, CronSignal] = PrivateAttr(

@@ -13,6 +13,7 @@ from livechain.graph.types import (
     CronEffect,
     CronSignal,
     ReactiveEffect,
+    ReactiveSignal,
     StateChange,
     Subscriber,
     T,
@@ -57,14 +58,13 @@ def reactive(
         effect: ReactiveEffect[TState],
     ) -> ReactiveSignalRoutine[TState, T]:
 
-        async def effect_wrapper(state_change: StateChange[TState]):
-            if cond(state_change.old_state) == cond(state_change.new_state):
-                return
-
-            return await effect(state_change.old_state, state_change.new_state)
+        async def effect_wrapper(signal: ReactiveSignal[TState]):
+            return await effect(
+                signal.state_change.old_state, signal.state_change.new_state
+            )
 
         return ReactiveSignalRoutine(
-            schema=StateChange[state_schema],
+            schema=ReactiveSignal[state_schema],
             routine=effect_wrapper,
             state_schema=state_schema,
             cond=cond,

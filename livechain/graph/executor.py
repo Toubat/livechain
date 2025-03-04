@@ -23,12 +23,14 @@ from livechain.graph.types import (
     CronSignal,
     EventSignal,
     LangGraphInjectable,
+    ReactiveSignal,
     StateChange,
     TConfig,
     TopicSignal,
     TriggerSignal,
     TState,
     TTopic,
+    WatchedValue,
 )
 from livechain.graph.utils import make_config_from_context
 
@@ -56,9 +58,10 @@ class Workflow(BaseModel, Generic[TState, TConfig, TTopic]):
         reactive_routines: List[ReactiveSignalRoutine[TState, Any]] = []
 
         cron_jobs: Dict[str, CronExpr] = {}
+        reactive_conds: Dict[str, WatchedValue[TState, Any]] = {}
         event_routine_runners: List[SignalRoutineRunner[EventSignal]] = []
         cron_routine_runners: List[SignalRoutineRunner[CronSignal]] = []
-        reactive_routine_runners: List[SignalRoutineRunner[StateChange[TState]]] = []
+        reactive_routine_runners: List[SignalRoutineRunner[ReactiveSignal[TState]]] = []
 
         for routine in self.routines:
             if routine.routine_type == SignalRoutineType.EVENT:
@@ -91,6 +94,7 @@ class Workflow(BaseModel, Generic[TState, TConfig, TTopic]):
             routine_runner = reactive_routine.create_runner(
                 config=config, injectable=injectable
             )
+            reactive_conds[routine_runner.routine_id] = reactive_routine.cond
             reactive_routine_runners.append(routine_runner)
 
         return WorkflowExecutor(
@@ -100,6 +104,7 @@ class Workflow(BaseModel, Generic[TState, TConfig, TTopic]):
             cron_routine_runners=cron_routine_runners,
             reactive_routine_runners=reactive_routine_runners,
             cron_jobs=cron_jobs,
+            reactive_conds=reactive_conds,
         )
 
 
@@ -113,9 +118,11 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
 
     _cron_routine_runners: List[SignalRoutineRunner[CronSignal]]
 
-    _reactive_routine_runners: List[SignalRoutineRunner[StateChange[TState]]]
+    _reactive_routine_runners: List[SignalRoutineRunner[ReactiveSignal[TState]]]
 
     _cron_jobs: Dict[str, CronExpr]
+
+    _reactive_conds: Dict[str, WatchedValue[TState, Any]]
 
     _workflow_task: Optional[asyncio.Task] = PrivateAttr(default=None)
 
@@ -125,8 +132,9 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
         context: Context,
         event_routine_runners: List[SignalRoutineRunner[EventSignal]],
         cron_routine_runners: List[SignalRoutineRunner[CronSignal]],
-        reactive_routine_runners: List[SignalRoutineRunner[StateChange[TState]]],
+        reactive_routine_runners: List[SignalRoutineRunner[ReactiveSignal[TState]]],
         cron_jobs: Dict[str, CronExpr],
+        reactive_conds: Dict[str, WatchedValue[TState, Any]],
     ):
         self._workflow_entrypoint = workflow_entrypoint
         self._context = context
@@ -134,13 +142,16 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
         self._cron_routine_runners = cron_routine_runners
         self._reactive_routine_runners = reactive_routine_runners
         self._cron_jobs = cron_jobs
+        self._reactive_conds = reactive_conds
 
     def start(self):
         for runner in self._event_routine_runners:
             self._context.events.subscribe(runner.schema, callback=runner)
 
         for runner in self._reactive_routine_runners:
-            self._context.effects.subscribe(callback=runner)
+            watched_value = self._reactive_conds[runner.routine_id]
+            conditional_callback = _with_cond(watched_value, runner)
+            self._context.effects.subscribe(callback=conditional_callback)
 
         for runner in self._cron_routine_runners:
             self._context.cron_jobs.subscribe(runner.routine_id, callback=runner)
@@ -186,3 +197,17 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
             self._workflow_task.cancel()
 
         self._workflow_task = asyncio.create_task(self._stream_workflow(trigger))
+
+
+def _with_cond(
+    cond: WatchedValue[TState, Any],
+    runner: SignalRoutineRunner[ReactiveSignal[TState]],
+) -> Callable[[ReactiveSignal[TState]], Awaitable[None]]:
+
+    async def reactive_routine_wrapper(signal: ReactiveSignal[TState]):
+        if cond(signal.state_change.old_state) == cond(signal.state_change.new_state):
+            return
+
+        return await runner(signal)
+
+    return reactive_routine_wrapper

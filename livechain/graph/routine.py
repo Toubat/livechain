@@ -18,6 +18,7 @@ from livechain.graph.func import step
 from livechain.graph.types import (
     CronSignal,
     LangGraphInjectable,
+    ReactiveSignal,
     StateChange,
     T,
     TEvent,
@@ -145,12 +146,14 @@ class EventSignalRoutine(BaseSignalRoutine[TEvent]):
         return SignalRoutineType.EVENT
 
 
-class ReactiveSignalRoutine(BaseSignalRoutine[StateChange[TState]], Generic[TState, T]):
+class ReactiveSignalRoutine(
+    BaseSignalRoutine[ReactiveSignal[TState]], Generic[TState, T]
+):
 
     def __init__(
         self,
-        schema: Type[StateChange[TState]],
-        routine: Callable[[StateChange[TState]], Awaitable[None]],
+        schema: Type[ReactiveSignal[TState]],
+        routine: Callable[[ReactiveSignal[TState]], Awaitable[None]],
         state_schema: Type[TState],
         cond: WatchedValue[TState, T],
         name: Optional[str] = None,

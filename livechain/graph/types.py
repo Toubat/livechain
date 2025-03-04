@@ -6,6 +6,7 @@ from typing import (
     Callable,
     Generic,
     Hashable,
+    List,
     Optional,
     Protocol,
     Type,
@@ -48,6 +49,11 @@ class StateChange(BaseModel, Generic[TState]):
 
 class CronSignal(BaseModel):
     cron_id: str
+
+
+class ReactiveSignal(BaseModel, Generic[TState]):
+    state_change: StateChange[TState]
+    reactive_id: str
 
 
 class TopicSignal(BaseModel):
