@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import AsyncMock
 
 import pytest
@@ -275,3 +276,34 @@ async def test_emitter_call_outside_context(event_emitter):
     # Call emit directly without run_in_context
     with pytest.raises(Exception):
         await event_emitter.emit(event)
+
+
+@pytest.mark.asyncio
+async def test_emitter_async_execution_without_await(event_emitter):
+    mock_callback = AsyncMock()
+
+    async def mock_callback_async(x):
+        await asyncio.sleep(0.1)
+
+    # Add a small delay to the mock to simulate work
+    mock_callback.side_effect = mock_callback_async
+
+    event_emitter.subscribe(callback=mock_callback)
+    event = IntEvent(data=42)
+
+    @run_in_context
+    async def emit_without_await():
+        # Start the emit but don't await it
+        event_emitter.emit(event)
+        # This should return immediately without waiting for callbacks
+
+    await emit_without_await()
+
+    # Initially the callback might not have been called yet
+    assert mock_callback.call_count <= 1
+
+    # Wait for the background task to complete
+    await asyncio.sleep(0.5)
+
+    # Now the callback should have been called
+    mock_callback.assert_called_once_with(event)
