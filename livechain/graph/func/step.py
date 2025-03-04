@@ -21,9 +21,7 @@ def step(
 
         @task(name=func_name, retry=retry)
         async def step_wrapper_task(*args: P.args, **kwargs: P.kwargs) -> T:
-            print("before")
             result = await func(*args, **kwargs)
-            print("after")
             return result
 
         task_func = functools.update_wrapper(step_wrapper_task, func)
