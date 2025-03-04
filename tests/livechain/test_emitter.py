@@ -263,3 +263,15 @@ async def test_emitter_subscribe_same_callback_to_different_events(event_emitter
     assert mock_callback.call_count == 2
     mock_callback.assert_any_call(int_event)
     mock_callback.assert_any_call(str_event)
+
+
+@pytest.mark.asyncio
+async def test_emitter_call_outside_context(event_emitter):
+    mock_callback = AsyncMock()
+    event_emitter.subscribe(callback=mock_callback)
+
+    event = IntEvent(data=42)
+
+    # Call emit directly without run_in_context
+    with pytest.raises(Exception):
+        await event_emitter.emit(event)
