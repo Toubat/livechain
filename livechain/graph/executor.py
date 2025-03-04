@@ -24,7 +24,6 @@ from livechain.graph.types import (
     EventSignal,
     LangGraphInjectable,
     ReactiveSignal,
-    StateChange,
     TConfig,
     TopicSignal,
     TriggerSignal,
@@ -126,6 +125,12 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
 
     _workflow_task: Optional[asyncio.Task] = PrivateAttr(default=None)
 
+    _conditional_callbacks: List[
+        Callable[[ReactiveSignal[TState]], Awaitable[None]]
+    ] = PrivateAttr(default_factory=list)
+
+    _executor_tasks: List[asyncio.Task[None]] = PrivateAttr(default_factory=list)
+
     def __init__(
         self,
         workflow_entrypoint: Pregel,
@@ -151,6 +156,7 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
         for runner in self._reactive_routine_runners:
             watched_value = self._reactive_conds[runner.routine_id]
             conditional_callback = _with_cond(watched_value, runner)
+            self._conditional_callbacks.append(conditional_callback)
             self._context.effects.subscribe(callback=conditional_callback)
 
         for runner in self._cron_routine_runners:
@@ -159,10 +165,39 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
         # register a callback to trigger the main workflow and cancel any already running workflow
         self._context.trigger.subscribe(callback=self._trigger_workflow)
 
-        asyncio.gather(
-            self._run_cron_jobs(),
-            return_exceptions=False,
-        )
+        self._executor_tasks = [
+            asyncio.create_task(self._run_cron_jobs()),
+            *[
+                asyncio.create_task(runner.start())
+                for runner in self._routine_runners()
+            ],
+        ]
+
+        asyncio.gather(*self._executor_tasks, return_exceptions=False)
+
+    def stop(self):
+        for task in self._executor_tasks:
+            task.cancel()
+
+        for runner in self._routine_runners():
+            runner.stop()
+
+        if self._workflow_task is not None:
+            self._workflow_task.cancel()
+
+        self._context.events.unsubscribe_all()
+        self._context.effects.unsubscribe_all()
+        self._context.cron_jobs.unsubscribe_all()
+        self._context.trigger.unsubscribe_all()
+        self._workflow_task = None
+        self._conditional_callbacks = []
+
+    def _routine_runners(self):
+        return [
+            *self._event_routine_runners,
+            *self._reactive_routine_runners,
+            *self._cron_routine_runners,
+        ]
 
     def recv(self, topic: TTopic):
         def recv_decorator(func: Callable[[Any], Awaitable[Any]]):

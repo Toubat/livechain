@@ -57,6 +57,11 @@ class Emitter(BaseModel, Generic[THashable, T]):
         else:
             self._subscribers[data].remove(callback)
 
+    def unsubscribe_all(self) -> None:
+        self._subscribers.clear()
+        self._default_subscribers.clear()
+        self._callback_to_hash.clear()
+
 
 def emitter_factory(
     get_hash: Callable[[T], THashable]
