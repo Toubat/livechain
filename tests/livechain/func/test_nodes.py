@@ -427,12 +427,8 @@ async def test_runner_behavior_debounce_mode():
     runner.stop()
     await runner_task
 
-    # Verify behavior: only the last event in each debounce window should be executed
-    assert len(exec_history) == 2
-    assert "executed-third" in exec_history
-    assert "executed-fourth" in exec_history
-    assert "executed-first" not in exec_history
-    assert "executed-second" not in exec_history
+    # Verify behavior: only the last two events in each debounce window should be executed
+    assert exec_history == ["executed-third", "executed-fourth"]
 
 
 if __name__ == "__main__":
