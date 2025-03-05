@@ -4,6 +4,7 @@ import asyncio
 import logging
 import uuid
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Type, Union
 
@@ -31,15 +32,19 @@ logger = logging.getLogger(__name__)
 
 class Mode:
 
+    @dataclass
     class Interrupt:
         pass
 
+    @dataclass
     class Parallel:
         pass
 
+    @dataclass
     class Queue:
         pass
 
+    @dataclass
     class Debounce:
         delay: float
 
