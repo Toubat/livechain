@@ -2,7 +2,7 @@ from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Set
 
 from pydantic import BaseModel, ConfigDict, PrivateAttr
 
-from livechain.graph.func.step import step_gather
+from livechain.graph.func.utils import step_gather
 from livechain.graph.types import T, THashable
 
 

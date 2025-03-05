@@ -1,5 +1,4 @@
-import asyncio
-from typing import Any, Dict, Generic, Self, Type
+from typing import Any, Dict, Generic, Type
 
 from pydantic import BaseModel, PrivateAttr
 
@@ -8,7 +7,6 @@ from livechain.graph.types import (
     CronSignal,
     EventSignal,
     ReactiveSignal,
-    StateChange,
     T,
     TopicSignal,
     TriggerSignal,

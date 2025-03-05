@@ -14,7 +14,6 @@ from pydantic import TypeAdapter, ValidationError
 
 from livechain.graph.constants import SENTINEL
 from livechain.graph.cron import CronExpr
-from livechain.graph.func import step
 from livechain.graph.types import (
     CronSignal,
     LangGraphInjectable,
@@ -76,7 +75,7 @@ class BaseSignalRoutine(Generic[TModel], ABC):
         self._schema = schema
         self._routine = routine
         self._strategy = strategy or default_signal_strategy()
-        self._name = name or self._routine.__name__
+        self._name = name if name is not None else self._routine.__name__
         self._retry = retry
 
     @property
@@ -92,10 +91,16 @@ class BaseSignalRoutine(Generic[TModel], ABC):
     def name(self) -> str:
         return self._name
 
+    @property
+    def mode(self) -> SignalStrategy:
+        return self._strategy
+
     def create_routine_runnable(
         self,
         injectable: LangGraphInjectable | None = None,
     ) -> Runnable[TModel, Any]:
+        from livechain.graph.func import step
+
         injectable = injectable or LangGraphInjectable.from_empty()
 
         @step(name=self._name, retry=self._retry)
