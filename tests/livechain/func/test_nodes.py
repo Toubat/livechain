@@ -6,7 +6,7 @@ import pytest
 from pydantic import BaseModel
 
 from livechain.graph.cron import interval
-from livechain.graph.func import cron, reactive, subscribe
+from livechain.graph.func import cron, reactive, step, subscribe
 from livechain.graph.func.routine import (
     CronSignalRoutine,
     EventSignalRoutine,
@@ -22,6 +22,7 @@ from livechain.graph.types import (
     StateChange,
     WatchedValue,
 )
+from livechain.graph.utils import run_in_context
 
 
 # Sample models for testing
@@ -429,6 +430,35 @@ async def test_runner_behavior_debounce_mode():
 
     # Verify behavior: only the last two events in each debounce window should be executed
     assert exec_history == ["executed-third", "executed-fourth"]
+
+
+@pytest.mark.asyncio
+async def test_step_preserves_function_name():
+    """Test that step decorator preserves the original function name."""
+
+    @step()
+    async def my_test_function(x):
+        return x + 1
+
+    # Verify the function name is preserved
+    assert my_test_function.__name__ == "my_test_function"
+
+    @run_in_context
+    async def test_step_with_context():
+        assert await my_test_function(5) == 6
+
+    await test_step_with_context()
+
+
+def test_step_requires_async_function():
+    """Test that step decorator raises an error when used with non-async function."""
+
+    # This should raise a TypeError or ValueError
+    with pytest.raises((TypeError, ValueError)):
+
+        @step()  # type: ignore
+        def non_async_function(data):
+            return f"processed_{data}"
 
 
 if __name__ == "__main__":

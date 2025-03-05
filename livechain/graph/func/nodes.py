@@ -1,3 +1,4 @@
+import asyncio
 import functools
 from functools import wraps
 from typing import Any, Awaitable, Callable, List, Optional, Type
@@ -36,6 +37,9 @@ def step(
         func: Callable[P, Awaitable[T]],
     ) -> Callable[P, SyncAsyncFuture[T]]:
         func_name = name if name is not None else func.__name__
+
+        if not asyncio.iscoroutinefunction(func):
+            raise ValueError("Step function must be async")
 
         @task(name=func_name, retry=retry)
         async def step_wrapper_task(*args: P.args, **kwargs: P.kwargs) -> T:
