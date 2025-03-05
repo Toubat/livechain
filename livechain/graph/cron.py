@@ -48,10 +48,9 @@ class Linear(CronExpr):
     _count: int = PrivateAttr(default=0)
 
     def next_tick(self) -> UnixTime:
-        next_tick = (
-            now()
-            + self.base_seconds
-            + min(self.step_seconds * self._count, self.max_interval_seconds)
+        next_tick = now() + min(
+            self.base_seconds + self.step_seconds * self._count,
+            self.max_interval_seconds,
         )
         self._count += 1
         return next_tick
