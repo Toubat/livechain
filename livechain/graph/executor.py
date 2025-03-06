@@ -196,7 +196,7 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
         )
 
         self._executor_tasks = [
-            asyncio.create_task(self._run_cron_jobs(cron_jobs)),
+            asyncio.create_task(self._schedule_cron_jobs(cron_jobs)),
             *[asyncio.create_task(runner.start()) for runner in self._runners],
         ]
 
@@ -248,14 +248,18 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
     async def mutate_state(self, state_patch: TState):
         return await self._context.mutate_state(state_patch)
 
+    @run_in_async_context
+    async def _run_cron_job(self, cron_id: str):
+        return await self._context.run_cron_job(cron_id)
+
     def get_state(self) -> TState:
         return self._context.get_state()
 
-    async def _run_cron_jobs(self, cron_jobs: Dict[str, CronExpr]):
+    async def _schedule_cron_jobs(self, cron_jobs: Dict[str, CronExpr]):
         scheduler = CronJobScheduler(cron_jobs=cron_jobs)
 
         async for cron_id in scheduler.schedule():
-            self._context.start_cron_job(cron_id)
+            asyncio.create_task(self._run_cron_job(cron_id))  # type: ignore
 
     async def _stream_workflow(self, trigger: TriggerSignal, config: RunnableConfig):
         async for part in self._workflow_entrypoint.astream(trigger, config=config):

@@ -6,8 +6,9 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.store.base import BaseStore
 from pydantic import BaseModel, Field
 
+from livechain.graph.cron import interval
 from livechain.graph.executor import Workflow
-from livechain.graph.func import reactive, root, step, subscribe
+from livechain.graph.func import cron, reactive, root, step, subscribe
 from livechain.graph.ops import mutate_state
 from livechain.graph.types import EventSignal, TriggerSignal
 
@@ -123,7 +124,7 @@ async def test_executor_single_event_routine():
     async def entrypoint():
         await workflow_callback()
 
-    @subscribe(MockEvent)
+    @subscribe(event_schema=MockEvent)
     async def on_mock_event(event: MockEvent):
         await event_callback(event)
 
@@ -137,6 +138,7 @@ async def test_executor_single_event_routine():
     workflow_callback.assert_not_called()
 
 
+@pytest.mark.asyncio
 async def test_executor_single_reactive_routine():
     reactive_callback = AsyncMock()
 
@@ -144,7 +146,7 @@ async def test_executor_single_reactive_routine():
     async def entrypoint():
         await mutate_state(count=1)
 
-    @reactive(MockState, cond=lambda state: state.count)
+    @reactive(state_schema=MockState, cond=lambda state: state.count)
     async def on_count_change(old_state: MockState, new_state: MockState):
         await reactive_callback(old_state, new_state)
 
@@ -157,3 +159,30 @@ async def test_executor_single_reactive_routine():
 
     reactive_callback.assert_called_once_with(MockState(count=0), MockState(count=1))
     assert executor.get_state().count == 1, "State should have been updated"
+
+
+@pytest.mark.asyncio
+async def test_executor_single_cron_routine():
+    cron_callback = AsyncMock()
+    delta = 0.01
+
+    @root()
+    async def entrypoint():
+        await mutate_state(count=1)
+
+    @cron(expr=interval(seconds=0.1))
+    async def on_cron():
+        await cron_callback()
+
+    workflow = Workflow.from_nodes(entrypoint, [on_cron])
+    executor = workflow.compile(state_schema=MockState)
+    executor.start()
+
+    await asyncio.sleep(0.1 + delta)
+    cron_callback.assert_called_once()
+
+    await asyncio.sleep(0.1 + delta)
+    assert cron_callback.call_count == 2, "Cron should have been called twice"
+
+    await asyncio.sleep(0.2 + delta)
+    assert cron_callback.call_count == 4, "Cron should have been called four times"

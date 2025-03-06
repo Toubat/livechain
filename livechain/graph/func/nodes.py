@@ -115,7 +115,7 @@ def reactive(
 
 
 def cron(
-    cron_expr: CronExpr,
+    expr: CronExpr,
     *,
     strategy: Optional[SignalStrategy] = None,
     name: Optional[str] = None,
@@ -132,7 +132,7 @@ def cron(
 
         return CronSignalRoutine(
             schema=CronSignal,
-            cron_expr=cron_expr,
+            cron_expr=expr,
             routine=cron_wrapper,
             strategy=strategy,
             name=name,

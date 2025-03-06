@@ -13,7 +13,7 @@ CONFIG = make_config({"thread_id": "1"})
 
 
 def create_base_graph(state_schema: Type[TState]):
-    async def save_state(_: Any):
+    def save_state(_: Any):
         return None
 
     graph = (

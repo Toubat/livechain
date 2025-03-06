@@ -46,20 +46,6 @@ class Context(BaseModel, Generic[TState]):
         default_factory=emitter_factory(lambda _: None)
     )
 
-    # _topic_q: asyncio.Queue[str] = PrivateAttr(default_factory=asyncio.Queue)
-
-    # _event_q: asyncio.Queue[Event] = PrivateAttr(default_factory=asyncio.Queue)
-
-    # _state_change_q: asyncio.Queue[StateChange[TState]] = PrivateAttr(
-    #     default_factory=asyncio.Queue
-    # )
-
-    # _cron_task_q: asyncio.Queue[CronSignal] = PrivateAttr(default_factory=asyncio.Queue)
-
-    # _trigger_q: asyncio.Queue[TriggerSignal] = PrivateAttr(
-    #     default_factory=asyncio.Queue
-    # )
-
     def __init__(
         self,
         state_schema: Type[TState],
@@ -86,7 +72,7 @@ class Context(BaseModel, Generic[TState]):
     def trigger_workflow(self, trigger: TriggerSignal):
         return self._trigger_emitter.emit(trigger)
 
-    def start_cron_job(self, cron_id: str):
+    def run_cron_job(self, cron_id: str):
         return self._cron_job_emitter.emit(CronSignal(cron_id=cron_id))
 
     @property
@@ -108,16 +94,3 @@ class Context(BaseModel, Generic[TState]):
     @property
     def trigger(self):
         return self._trigger_emitter
-
-    # async def _listen(self, data_q: asyncio.Queue[T], emitter: Emitter[THashable, T]):
-    #     while True:
-    #         data = await data_q.get()
-    #         emitter.emit(data)
-
-    # async def start_listeners(self):
-    #     await asyncio.gather(
-    #         self._listen(self._topic_q, self._topic_emitter),
-    #         self._listen(self._event_q, self._event_emitter),
-    #         self._listen(self._state_change_q, self._state_change_emitter),
-    #         self._listen(self._trigger_q, self._trigger_emitter),
-    #     )
