@@ -299,7 +299,8 @@ class ParallelSignalRoutineRunner(SignalRoutineRunner[TModel]):
         self._tasks: Dict[uuid.UUID, asyncio.Task] = {}
 
     def _on_task_done(self, task_id: uuid.UUID):
-        self._tasks.pop(task_id)
+        if task_id in self._tasks:
+            self._tasks.pop(task_id)
 
     def _cancel_tasks(self):
         for task in self._tasks.values():

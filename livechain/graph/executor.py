@@ -237,16 +237,20 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
         return recv_decorator
 
     @run_in_async_context
-    async def emit(self, event: EventSignal):
+    async def publish_event(self, event: EventSignal):
         return await self._context.publish_event(event)
 
     @run_in_async_context
-    async def trigger(self, trigger: TriggerSignal):
+    async def trigger_workflow(self, trigger: TriggerSignal):
         return await self._context.trigger_workflow(trigger)
 
     @run_in_async_context
     async def mutate_state(self, state_patch: TState):
         return await self._context.mutate_state(state_patch)
+
+    @run_in_async_context
+    async def channel_send(self, topic: TTopic, data: Any):
+        return await self._context.channel_send(topic, data)
 
     @run_in_async_context
     async def _run_cron_job(self, cron_id: str):
