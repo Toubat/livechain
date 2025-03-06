@@ -107,3 +107,11 @@ class LangGraphInjectable(BaseModel):
         config_schema: Optional[Type[Any]],
     ) -> LangGraphInjectable:
         return cls(checkpointer=checkpointer, store=store, config_schema=config_schema)
+
+    @property
+    def require_thread_id(self) -> bool:
+        return self.checkpointer is not None or self.store is not None
+
+    @property
+    def require_config(self) -> bool:
+        return self.config_schema is not None

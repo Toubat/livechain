@@ -129,6 +129,19 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
         self._reactive_routines = reactive_routines
 
     def start(self, thread_id: Optional[str] = None, config: Optional[TConfig] = None):
+        if self._injectable.require_thread_id and thread_id is None:
+            raise ValueError("Thread ID is required when using a checkpointer or store")
+
+        if self._injectable.require_config and config is None:
+            raise ValueError("Config is required when using a config schema")
+
+        if self._injectable.config_schema is not None and not isinstance(
+            config, self._injectable.config_schema
+        ):
+            raise ValueError(
+                f"Config must be an instance of {self._injectable.config_schema}"
+            )
+
         runnable_config = make_config_from_context(self._context, thread_id, config)
         cron_jobs: Dict[str, CronExpr] = {}
 
