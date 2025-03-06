@@ -267,8 +267,10 @@ async def test_complex_reactive_workflow():
 async def test_retry_mechanism_for_failed_steps():
     """Tests automatic retries for failed operations"""
     attempts = 0
-    retry_policy = RetryPolicy(retry_on=ValueError)
+    retry_policy = RetryPolicy(initial_interval=0.001, retry_on=ValueError)
     callback = AsyncMock()
+    unreliable_done = asyncio.Event()
+    callback_done = asyncio.Event()
 
     @root()
     async def entrypoint():
@@ -278,20 +280,27 @@ async def test_retry_mechanism_for_failed_steps():
     async def unreliable_step():
         nonlocal attempts
         attempts += 1
-        if attempts < 3:
-            raise ValueError("Temporary failure")
+
+        try:
+            if attempts < 3:
+                raise ValueError("Temporary failure")
+        finally:
+            if attempts >= 3:
+                unreliable_done.set()
 
     @subscribe(event_schema=MockEvent)
     async def handle_event(event: MockEvent):
         await unreliable_step()
         await callback()
+        callback_done.set()
 
     workflow = Workflow.from_nodes(entrypoint, [handle_event])
     executor = workflow.compile(state_schema=MockState)
     executor.start()
 
     await executor.publish_event(MockEvent(name="retry-test"))
-    await asyncio.sleep(0.1)
+    await unreliable_done.wait()
+    await callback_done.wait()
 
     assert (
         attempts == 3
