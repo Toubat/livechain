@@ -267,7 +267,7 @@ async def test_complex_reactive_workflow():
 async def test_retry_mechanism_for_failed_steps():
     """Tests automatic retries for failed operations"""
     attempts = 0
-    retry_policy = RetryPolicy(max_attempts=3, initial_interval=0.01)
+    retry_policy = RetryPolicy(retry_on=ValueError)
     callback = AsyncMock()
 
     @root()
