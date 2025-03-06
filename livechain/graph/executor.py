@@ -33,7 +33,7 @@ from livechain.graph.types import (
     TTopic,
     WatchedValue,
 )
-from livechain.graph.utils import make_config_from_context
+from livechain.graph.utils import make_config_from_context, run_in_async_context
 
 logger = logging.getLogger(__name__)
 
@@ -46,12 +46,23 @@ class Workflow(BaseModel, Generic[TState, TConfig, TTopic]):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
+    @classmethod
+    def from_nodes(
+        cls,
+        root: Root,
+        routines: List[BaseSignalRoutine] | None = None,
+    ) -> Workflow:
+        if routines is None:
+            routines = []
+
+        return cls(root=root, routines=routines)
+
     def compile(
         self,
         state_schema: Type[TState],
         *,
-        checkpointer: Optional[BaseCheckpointSaver],
-        store: Optional[BaseStore],
+        checkpointer: Optional[BaseCheckpointSaver] = None,
+        store: Optional[BaseStore] = None,
         config_schema: Optional[Type[TConfig]] = None,
     ) -> WorkflowExecutor:
         context = Context(state_schema=state_schema)
@@ -92,17 +103,17 @@ class Workflow(BaseModel, Generic[TState, TConfig, TTopic]):
 
 class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
 
-    _injectable: LangGraphInjectable
+    _injectable: LangGraphInjectable = PrivateAttr()
 
-    _workflow_entrypoint: Pregel
+    _workflow_entrypoint: Pregel = PrivateAttr()
 
-    _context: Context
+    _context: Context = PrivateAttr()
 
-    _event_routines: List[EventSignalRoutine[EventSignal]]
+    _event_routines: List[EventSignalRoutine[EventSignal]] = PrivateAttr()
 
-    _cron_routines: List[CronSignalRoutine]
+    _cron_routines: List[CronSignalRoutine] = PrivateAttr()
 
-    _reactive_routines: List[ReactiveSignalRoutine[TState, Any]]
+    _reactive_routines: List[ReactiveSignalRoutine[TState, Any]] = PrivateAttr()
 
     _workflow_task: Optional[asyncio.Task] = PrivateAttr(default=None)
 
@@ -121,6 +132,7 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
         cron_routines: List[CronSignalRoutine],
         reactive_routines: List[ReactiveSignalRoutine[TState, Any]],
     ):
+        super().__init__()
         self._injectable = injectable
         self._workflow_entrypoint = workflow_entrypoint
         self._context = context
@@ -128,22 +140,26 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
         self._cron_routines = cron_routines
         self._reactive_routines = reactive_routines
 
-    def start(self, thread_id: Optional[str] = None, config: Optional[TConfig] = None):
+    def start(
+        self,
+        thread_id: Optional[str] = None,
+        config: Optional[TConfig | Dict[str, Any]] = None,
+    ):
         if self._injectable.require_thread_id and thread_id is None:
             raise ValueError("Thread ID is required when using a checkpointer or store")
 
         if self._injectable.require_config and config is None:
             raise ValueError("Config is required when using a config schema")
 
-        if self._injectable.config_schema is not None and not isinstance(
-            config, self._injectable.config_schema
-        ):
-            raise ValueError(
-                f"Config must be an instance of {self._injectable.config_schema}"
-            )
+        if self._injectable.config_schema is not None:
+            validated_config = self._injectable.config_schema.model_validate(config)
+        else:
+            validated_config = config
 
-        runnable_config = make_config_from_context(self._context, thread_id, config)
         cron_jobs: Dict[str, CronExpr] = {}
+        runnable_config = make_config_from_context(
+            self._context, thread_id, validated_config
+        )
 
         for event_routine in self._event_routines:
             routine_runner = event_routine.create_runner(
@@ -220,11 +236,13 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
 
         return recv_decorator
 
-    def emit(self, event: EventSignal):
-        self._context.publish_event(event)
+    @run_in_async_context
+    async def emit(self, event: EventSignal):
+        return await self._context.publish_event(event)
 
-    def trigger(self, trigger: TriggerSignal):
-        self._context.trigger_workflow(trigger)
+    @run_in_async_context
+    async def trigger(self, trigger: TriggerSignal):
+        return await self._context.trigger_workflow(trigger)
 
     async def _run_cron_jobs(self, cron_jobs: Dict[str, CronExpr]):
         scheduler = CronJobScheduler(cron_jobs=cron_jobs)

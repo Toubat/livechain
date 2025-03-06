@@ -102,9 +102,9 @@ class LangGraphInjectable(BaseModel):
     @classmethod
     def from_values(
         cls,
-        checkpointer: Optional[BaseCheckpointSaver],
-        store: Optional[BaseStore],
-        config_schema: Optional[Type[Any]],
+        checkpointer: Optional[BaseCheckpointSaver] = None,
+        store: Optional[BaseStore] = None,
+        config_schema: Optional[Type[Any]] = None,
     ) -> LangGraphInjectable:
         return cls(checkpointer=checkpointer, store=store, config_schema=config_schema)
 

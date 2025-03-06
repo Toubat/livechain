@@ -101,6 +101,7 @@ async def test_entrypoint_method_entrypoint_func_is_called():
     assert call_count == 1
 
 
+@pytest.mark.asyncio
 async def test_entrypoint_method_entrypoint_func_is_called_with_wrong_trigger():
     """Test that the entrypoint method raises an error if the trigger is not a TriggerSignal."""
     call_count = 0

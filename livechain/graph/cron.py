@@ -81,6 +81,9 @@ class CronJobScheduler(BaseModel):
     cron_jobs: Dict[str, CronExpr]
 
     async def schedule(self):
+        if len(self.cron_jobs) == 0:
+            return
+
         cron_job_pq = [
             (cron_expr.next_tick(), cron_id, cron_expr)
             for cron_id, cron_expr in self.cron_jobs.items()

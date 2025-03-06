@@ -77,6 +77,13 @@ class TestCronJobScheduler:
     """Test the CronJobScheduler class."""
 
     @pytest.mark.asyncio
+    async def test_scheduler_no_jobs(self):
+        """Test that scheduler with no jobs does nothing."""
+        scheduler = CronJobScheduler(cron_jobs={})
+        async for job in scheduler.schedule():
+            assert False
+
+    @pytest.mark.asyncio
     async def test_scheduler_basic_intervals(self):
         """Test that scheduler with mock sleep that advances time."""
         # Control time with a mutable variable
