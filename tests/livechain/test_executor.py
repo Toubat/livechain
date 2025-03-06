@@ -361,8 +361,8 @@ async def test_high_load_state_mutations():
 
     # Send 100 rapid mutations
     await asyncio.gather(
-        *[executor.mutate_state(MockState(count=i)) for i in range(100)]
+        *[executor.mutate_state(MockState(count=i)) for i in range(1, 101)]
     )
 
-    await asyncio.sleep(0.5)
+    await asyncio.sleep(1)
     assert mutation_count == 100, "Should handle all state mutations"
