@@ -21,8 +21,9 @@ class Root(BaseModel):
             store=store,
             config_schema=config_schema,
         )
-        @functools.wraps(self.entrypoint_func)
         async def entrypoint_wrapper(trigger: TriggerSignal):
+            if not isinstance(trigger, TriggerSignal):
+                raise ValueError("Root entrypoint must be called with a TriggerSignal")
             return await self.entrypoint_func()
 
         return entrypoint_wrapper

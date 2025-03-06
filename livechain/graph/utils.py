@@ -4,6 +4,7 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, Type, overloa
 
 from langchain_core.runnables import RunnableConfig
 from langgraph.func import entrypoint
+from pydantic import BaseModel
 
 from livechain.graph.constants import CONF, CONFIG_KEY_CONTEXT
 from livechain.graph.context import Context
@@ -13,8 +14,23 @@ def make_config(configurable: Dict[str, Any]) -> RunnableConfig:
     return {CONF: configurable}
 
 
-def make_config_from_context(context: Context) -> RunnableConfig:
-    return make_config({CONFIG_KEY_CONTEXT: context})
+def make_config_from_context(
+    context: Context,
+    thread_id: Optional[str] = None,
+    config: Optional[Dict[str, Any] | BaseModel] = None,
+) -> RunnableConfig:
+    if isinstance(config, BaseModel):
+        config = config.model_dump()
+
+    configurable: Dict[str, Any] = {CONFIG_KEY_CONTEXT: context}
+
+    if thread_id is not None:
+        configurable["thread_id"] = thread_id
+
+    if config is not None:
+        configurable.update(config)
+
+    return make_config(configurable)
 
 
 @overload
@@ -23,12 +39,12 @@ def run_in_context(func: Callable[..., None]) -> Callable[..., None]: ...
 
 @overload
 def run_in_context(
-    func: Callable[..., Awaitable[None]]
+    func: Callable[..., Awaitable[None]],
 ) -> Callable[..., Awaitable[None]]: ...
 
 
 def run_in_context(
-    func: Callable[..., Any] | Callable[..., Awaitable[Any]]
+    func: Callable[..., Any] | Callable[..., Awaitable[Any]],
 ) -> Callable[..., Any] | Callable[..., Awaitable[Any]]:
 
     @entrypoint()
