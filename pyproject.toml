@@ -1,0 +1,32 @@
+[project]
+name = "livechain"
+version = "0.1.0"
+description = ""
+authors = [{ name = "Brian Yin", email = "toubatbrian@gmail.com" }]
+requires-python = "~=3.12"
+readme = "README.md"
+license = "MIT"
+dependencies = [
+    "livekit-agents",
+    "langgraph",
+    "langchain-core",
+    "python-dotenv",
+    "livekit-plugins-deepgram",
+    "livekit-plugins-openai",
+    "livekit-plugins-silero",
+    "livekit-plugins-turn-detector",
+]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=6.29.5",
+    "pytest>=8.3.5",
+    "pytest-asyncio>=0.25.3",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
