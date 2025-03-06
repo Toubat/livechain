@@ -42,18 +42,13 @@ class EventSignal(BaseModel): ...
 TEvent = TypeVar("TEvent", bound=EventSignal)
 
 
-class StateChange(BaseModel, Generic[TState]):
+class ReactiveSignal(BaseModel, Generic[TState]):
     old_state: TState
     new_state: TState
 
 
 class CronSignal(BaseModel):
     cron_id: str
-
-
-class ReactiveSignal(BaseModel, Generic[TState]):
-    state_change: StateChange[TState]
-    reactive_id: str
 
 
 class TopicSignal(BaseModel):

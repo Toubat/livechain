@@ -1,22 +1,30 @@
-from typing import Any, Dict, Generic, Type
+from typing import Any, Dict, Generic, Optional, Type
 
-from pydantic import BaseModel, PrivateAttr
+from pydantic import BaseModel, Field, PrivateAttr
 
 from livechain.graph.emitter import Emitter, emitter_factory
+from livechain.graph.persist.base import BaseStatePersister
 from livechain.graph.types import (
     CronSignal,
     EventSignal,
     ReactiveSignal,
-    T,
     TopicSignal,
     TriggerSignal,
     TState,
 )
 
 
+def create_default_persister(state_schema: Type[TState]) -> BaseStatePersister[TState]:
+    from livechain.graph.persist.local import LocalStatePersister
+
+    return LocalStatePersister(state_schema)
+
+
 class Context(BaseModel, Generic[TState]):
 
     state_schema: Type[TState]
+
+    _persister: BaseStatePersister[TState] = PrivateAttr()
 
     _topic_emitter: Emitter[str, TopicSignal] = PrivateAttr(
         default_factory=emitter_factory(lambda x: x.topic)
@@ -26,8 +34,8 @@ class Context(BaseModel, Generic[TState]):
         default_factory=emitter_factory(lambda x: type(x))
     )
 
-    _effect_emitter: Emitter[str, ReactiveSignal[TState]] = PrivateAttr(
-        default_factory=emitter_factory(lambda x: x.reactive_id)
+    _effect_emitter: Emitter[None, ReactiveSignal[TState]] = PrivateAttr(
+        default_factory=emitter_factory(lambda _: None)
     )
 
     _cron_job_emitter: Emitter[str, CronSignal] = PrivateAttr(
@@ -52,8 +60,22 @@ class Context(BaseModel, Generic[TState]):
     #     default_factory=asyncio.Queue
     # )
 
-    async def mutate_state(self, state_patch: Dict[str, Any]):
-        pass
+    def __init__(
+        self,
+        state_schema: Type[TState],
+        persister: Optional[BaseStatePersister[TState]] = None,
+    ):
+        super().__init__(state_schema=state_schema)
+        self._persister = persister or create_default_persister(state_schema)
+
+    def get_state(self) -> TState:
+        return self._persister.get()
+
+    def mutate_state(self, state_patch: TState | Dict[str, Any]):
+        prev_state = self._persister.get()
+        curr_state = self._persister.set(state_patch)
+        state_change = ReactiveSignal(old_state=prev_state, new_state=curr_state)
+        return self._effect_emitter.emit(state_change)
 
     def channel_send(self, topic: str, data: Any):
         return self._topic_emitter.emit(TopicSignal(topic=topic, data=data))

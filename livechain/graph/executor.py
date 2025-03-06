@@ -21,6 +21,7 @@ from livechain.graph.func.routine import (
     SignalRoutineRunner,
     SignalRoutineType,
 )
+from livechain.graph.persist.base import BaseStatePersister
 from livechain.graph.types import (
     CronSignal,
     EventSignal,
@@ -60,12 +61,13 @@ class Workflow(BaseModel, Generic[TState, TConfig, TTopic]):
     def compile(
         self,
         state_schema: Type[TState],
+        persister: Optional[BaseStatePersister[TState]] = None,
         *,
         checkpointer: Optional[BaseCheckpointSaver] = None,
         store: Optional[BaseStore] = None,
         config_schema: Optional[Type[TConfig]] = None,
     ) -> WorkflowExecutor:
-        context = Context(state_schema=state_schema)
+        context = Context(state_schema=state_schema, persister=persister)
         injectable = LangGraphInjectable.from_values(
             checkpointer=checkpointer,
             store=store,
@@ -107,7 +109,7 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
 
     _workflow_entrypoint: Pregel = PrivateAttr()
 
-    _context: Context = PrivateAttr()
+    _context: Context[TState] = PrivateAttr()
 
     _event_routines: List[EventSignalRoutine[EventSignal]] = PrivateAttr()
 
@@ -186,9 +188,7 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
             )
             conditional_callback = _with_cond(reactive_routine.cond, routine_runner)
             self._runners.append(routine_runner)
-            self._context.effects.subscribe(
-                routine_runner.routine_id, callback=conditional_callback
-            )
+            self._context.effects.subscribe(callback=conditional_callback)
 
         # register a callback to trigger the main workflow and cancel any already running workflow
         self._context.trigger.subscribe(
@@ -244,6 +244,13 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
     async def trigger(self, trigger: TriggerSignal):
         return await self._context.trigger_workflow(trigger)
 
+    @run_in_async_context
+    async def mutate_state(self, state_patch: TState):
+        return await self._context.mutate_state(state_patch)
+
+    def get_state(self) -> TState:
+        return self._context.get_state()
+
     async def _run_cron_jobs(self, cron_jobs: Dict[str, CronExpr]):
         scheduler = CronJobScheduler(cron_jobs=cron_jobs)
 
@@ -276,7 +283,7 @@ def _with_cond(
 ) -> Callable[[ReactiveSignal[TState]], Awaitable[None]]:
 
     async def reactive_routine_wrapper(signal: ReactiveSignal[TState]):
-        if cond(signal.state_change.old_state) == cond(signal.state_change.new_state):
+        if cond(signal.old_state) == cond(signal.new_state):
             return
 
         return await runner(signal)

@@ -15,13 +15,7 @@ from livechain.graph.func.routine import (
     SignalRoutineType,
     SignalStrategy,
 )
-from livechain.graph.types import (
-    CronSignal,
-    EventSignal,
-    ReactiveSignal,
-    StateChange,
-    WatchedValue,
-)
+from livechain.graph.types import CronSignal, EventSignal, ReactiveSignal, WatchedValue
 from livechain.graph.utils import run_in_context
 
 
@@ -148,10 +142,7 @@ async def test_reactive_execution():
     old_state = MockState(count=1, message="old message")
     new_state = MockState(count=2, message="new message")
 
-    signal = ReactiveSignal[MockState](
-        reactive_id="test_reactive",
-        state_change=StateChange(old_state=old_state, new_state=new_state),
-    )
+    signal = ReactiveSignal(old_state=old_state, new_state=new_state)
     await runnable.ainvoke(signal)
 
     # Verify the states were passed to the effect function

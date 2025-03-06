@@ -12,6 +12,7 @@ from livechain.graph.func.routine import (
     CronSignalRoutine,
     EventSignalRoutine,
     ReactiveSignalRoutine,
+    SignalRoutineRunner,
     SignalStrategy,
 )
 from livechain.graph.types import (
@@ -36,14 +37,23 @@ def step(
     def step_wrapper(
         func: Callable[P, Awaitable[T]],
     ) -> Callable[P, SyncAsyncFuture[T]]:
-        func_name = name if name is not None else func.__name__
+        func_name = (
+            name
+            if name is not None
+            else func.name if isinstance(func, SignalRoutineRunner) else func.__name__
+        )
 
-        if not asyncio.iscoroutinefunction(func):
-            raise ValueError("Step function must be async")
+        if not asyncio.iscoroutinefunction(func) and not isinstance(
+            func, SignalRoutineRunner
+        ):
+            raise ValueError(
+                "Step function must be async or a SignalRoutineRunner, got %s"
+                % type(func)
+            )
 
         @task(name=func_name, retry=retry)
         async def step_wrapper_task(*args: P.args, **kwargs: P.kwargs) -> T:
-            result = await func(*args, **kwargs)
+            result = await func(*args, **kwargs)  # type: ignore
             return result
 
         task_func = functools.update_wrapper(step_wrapper_task, func)
@@ -55,7 +65,7 @@ def step(
 def subscribe(
     event_schema: Type[TEvent],
     *,
-    strategy: Optional[SignalStrategy],
+    strategy: Optional[SignalStrategy] = None,
     name: Optional[str] = None,
     retry: Optional[RetryPolicy] = None,
 ) -> Callable[[Subscriber[TEvent]], EventSignalRoutine[TEvent]]:
@@ -78,7 +88,7 @@ def reactive(
     state_schema: Type[TState],
     cond: WatchedValue[TState, T],
     *,
-    strategy: Optional[SignalStrategy],
+    strategy: Optional[SignalStrategy] = None,
     name: Optional[str] = None,
     retry: Optional[RetryPolicy] = None,
 ) -> Callable[[ReactiveEffect[TState]], ReactiveSignalRoutine[TState, T]]:
@@ -89,9 +99,7 @@ def reactive(
 
         @wraps(effect)
         async def effect_wrapper(signal: ReactiveSignal[TState]):
-            return await effect(
-                signal.state_change.old_state, signal.state_change.new_state
-            )
+            return await effect(signal.old_state, signal.new_state)
 
         return ReactiveSignalRoutine(
             schema=ReactiveSignal[state_schema],
@@ -109,7 +117,7 @@ def reactive(
 def cron(
     cron_expr: CronExpr,
     *,
-    strategy: Optional[SignalStrategy],
+    strategy: Optional[SignalStrategy] = None,
     name: Optional[str] = None,
     retry: Optional[RetryPolicy] = None,
 ) -> Callable[[CronEffect], CronSignalRoutine]:
