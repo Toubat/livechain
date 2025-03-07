@@ -1,6 +1,17 @@
+import asyncio
 from functools import wraps
 from inspect import iscoroutinefunction
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Type, overload
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Coroutine,
+    Dict,
+    List,
+    Optional,
+    Type,
+    overload,
+)
 
 from langchain_core.runnables import RunnableConfig
 from langgraph.func import entrypoint
@@ -73,7 +84,9 @@ def run_in_context(
         return run_entrypoint
 
 
-def run_in_async_context(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
+def run_in_async_context(
+    func: Callable[P, Coroutine[Any, Any, T]],
+) -> Callable[P, Coroutine[Any, Any, T]]:
     async def func_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
         @entrypoint()
         async def run_async_in_context_wrapper(input: Any) -> T:

@@ -2,4 +2,4 @@ run-agent:
 	@uv run python examples/test_agent.py dev
 
 test:
-	@uv run python -m pytest -vv -s tests/livechain/
+	@uv run python -m pytest -vv -s -n auto tests/livechain/

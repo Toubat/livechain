@@ -1,4 +1,5 @@
 import asyncio
+import time
 from unittest.mock import AsyncMock, create_autospec
 
 import pytest
@@ -10,7 +11,7 @@ from pydantic import BaseModel, Field
 from livechain.graph.cron import interval
 from livechain.graph.executor import Workflow
 from livechain.graph.func import cron, reactive, root, step, subscribe
-from livechain.graph.ops import get_state, mutate_state
+from livechain.graph.ops import get_state, mutate_state, trigger_workflow
 from livechain.graph.types import EventSignal, TriggerSignal
 
 
@@ -375,3 +376,40 @@ async def test_high_load_state_mutations():
 
     await asyncio.sleep(1)
     assert mutation_count == 100, "Should handle all state mutations"
+
+
+@pytest.mark.asyncio
+async def test_workflow_interruption_from_event_handler():
+    """Test that triggering workflow from event handler interrupts running workflow"""
+    execution_states = []
+
+    @step()
+    async def step_1():
+        nonlocal execution_states
+        execution_states.append("started")
+
+        # Simulate long-running workflow
+        await asyncio.sleep(0.2)
+        execution_states.append("completed")
+
+    @root()
+    async def entrypoint():
+        await step_1()
+
+    @subscribe(event_schema=MockEvent)
+    async def interrupt_handler(event: MockEvent):
+        # Trigger new workflow execution
+        await trigger_workflow()
+
+    workflow = Workflow.from_nodes(entrypoint, [interrupt_handler])
+    executor = workflow.compile(state_schema=MockState)
+    executor.start()
+
+    # Start initial workflow
+    executor.trigger_workflow(TriggerSignal())
+    await asyncio.sleep(0.1)
+    executor.publish_event(MockEvent(name="test"))
+    await asyncio.sleep(0.25)
+
+    # Verify initial workflow was started but not completed
+    assert execution_states == ["started", "started", "completed"]
