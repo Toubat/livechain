@@ -1,15 +1,25 @@
 [project]
 name = "livechain"
 version = "0.1.0"
-description = ""
+description = "A framework for building conversational AI agents with LiveKit and LangGraph"
 authors = [{ name = "Brian Yin", email = "toubatbrian@gmail.com" }]
 requires-python = "~=3.12"
 readme = "README.md"
-license = "MIT"
+license = { text = "MIT" }
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+keywords = ["ai", "voice", "agent", "livekit", "langgraph", "langchain"]
 dependencies = [
     "livekit-agents",
     "langgraph",
     "langchain-core",
+    "langchain-openai",
     "python-dotenv",
     "livekit-plugins-deepgram",
     "livekit-plugins-openai",
@@ -17,17 +27,57 @@ dependencies = [
     "livekit-plugins-turn-detector",
 ]
 
-[dependency-groups]
+[project.optional-dependencies]
 dev = [
     "ipykernel>=6.29.5",
     "pytest>=8.3.5",
     "pytest-asyncio>=0.25.3",
     "pytest-xdist>=3.6.1",
+    "black>=24.3.0",
+    "isort>=5.13.2",
+    "mypy>=1.9.0",
+    "ruff>=0.3.7",
 ]
+
+[project.urls]
+Documentation = "https://github.com/toubatbrian/livechain"
+Source = "https://github.com/toubatbrian/livechain"
+"Bug Tracker" = "https://github.com/toubatbrian/livechain/issues"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build.targets.wheel]
+packages = ["livechain"]
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+select = ["E", "F", "B", "I"]
+ignore = []
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+[dependency-groups]
+dev = [
+    "aioconsole>=0.8.1",
+]

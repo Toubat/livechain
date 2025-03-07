@@ -279,7 +279,7 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
 
     async def _stream_workflow(self, trigger: TriggerSignal, config: RunnableConfig):
         async for part in self._workflow_entrypoint.astream(trigger, config=config):
-            print(part)
+            ...
 
     def _create_trigger_workflow_coroutine(
         self,

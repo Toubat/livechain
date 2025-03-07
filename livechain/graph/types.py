@@ -36,7 +36,9 @@ T_cov = TypeVar("T_cov", covariant=True)
 EntrypointFunc = Callable[[], Awaitable[None]]
 
 
-class EventSignal(BaseModel): ...
+class EventSignal(BaseModel):
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 TEvent = TypeVar("TEvent", bound=EventSignal)
