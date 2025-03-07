@@ -1,11 +1,11 @@
 from typing import Any, Dict, List, Literal, Optional, Type, overload
 
-from langgraph.config import get_config
+from langgraph.config import get_config as get_langgraph_config
 from langgraph.pregel.call import SyncAsyncFuture
 
 from livechain.graph.constants import CONF, CONFIG_KEY_CONTEXT
 from livechain.graph.context import Context
-from livechain.graph.types import EventSignal, TriggerSignal, TState
+from livechain.graph.types import EventSignal, TConfig, TriggerSignal, TState
 
 GraphOp = Literal[
     "get_state",
@@ -17,7 +17,7 @@ GraphOp = Literal[
 
 
 def get_context(op: GraphOp) -> Context:
-    config = get_config()
+    config = get_langgraph_config()
 
     if CONFIG_KEY_CONTEXT not in config.get(CONF, {}):
         raise RuntimeError(f"Called {op} outside of a workflow")
@@ -25,7 +25,15 @@ def get_context(op: GraphOp) -> Context:
     return config.get(CONF, {})[CONFIG_KEY_CONTEXT]
 
 
-def get_state(state_schema: Type[TState], validate: bool = False):
+def get_config(config_schema: Type[TConfig]) -> TConfig:
+    config = get_langgraph_config()
+
+    configurable = config.get(CONF, {})
+
+    return config_schema.model_validate(configurable)
+
+
+def get_state(state_schema: Type[TState], validate: bool = False) -> TState:
     context = get_context("get_state")
     state = context.get_state()
 
