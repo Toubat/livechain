@@ -77,7 +77,7 @@ class Workflow(BaseModel, Generic[TState, TConfig, TTopic]):
         reactive_routines: List[ReactiveSignalRoutine[TState, Any]] = []
 
         for routine in self.routines:
-            if routine.routine_type == SignalRoutineType.EVENT:
+            if routine.routine_type == SignalRoutineType.SUBSCRIBE:
                 event_routines.append(cast(EventSignalRoutine, routine))
             elif routine.routine_type == SignalRoutineType.CRON:
                 cron_routines.append(cast(CronSignalRoutine, routine))

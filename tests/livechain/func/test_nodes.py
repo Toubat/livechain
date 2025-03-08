@@ -63,7 +63,7 @@ def test_subscribe_decorator():
 
     # Verify the result is an EventSignalRoutine with correct properties
     assert isinstance(test_subscriber, EventSignalRoutine)
-    assert test_subscriber.routine_type == SignalRoutineType.EVENT
+    assert test_subscriber.routine_type == SignalRoutineType.SUBSCRIBE
     assert test_subscriber.schema == MockEvent
     assert test_subscriber.name == "test_subscriber"
     assert isinstance(test_subscriber.mode, Mode.Parallel)

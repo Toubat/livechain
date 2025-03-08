@@ -19,6 +19,14 @@ def async_parallel(
     return runnable
 
 
+def rename_function(new_name: str):
+    def decorator(func: Callable[P, T]):
+        func.__name__ = new_name
+        return func
+
+    return decorator
+
+
 # def step_gather(
 #     *funcs: Callable[P, Awaitable[T]],
 # ) -> Callable[P, SyncAsyncFuture[List[T]]]:

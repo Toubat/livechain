@@ -5,7 +5,7 @@ import logging
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import Enum, auto
+from enum import Enum
 from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Type, Union
 
 from langchain_core.runnables import Runnable, RunnableConfig
@@ -55,10 +55,10 @@ SignalStrategy = Union[
 ]
 
 
-class SignalRoutineType(Enum):
-    EVENT = auto()
-    REACTIVE = auto()
-    CRON = auto()
+class SignalRoutineType(str, Enum):
+    SUBSCRIBE = "EventCallback"
+    REACTIVE = "ReactiveEffect"
+    CRON = "CronEffect"
 
 
 def default_signal_strategy() -> Mode.Parallel:
@@ -102,6 +102,7 @@ class BaseSignalRoutine(Generic[TModel], ABC):
         injectable: LangGraphInjectable | None = None,
     ) -> Runnable[TModel, Any]:
         from livechain.graph.func import step
+        from livechain.graph.func.utils import rename_function
 
         injectable = injectable or LangGraphInjectable.from_empty()
 
@@ -114,6 +115,7 @@ class BaseSignalRoutine(Generic[TModel], ABC):
             store=injectable.store,
             config_schema=injectable.config_schema,
         )
+        @rename_function(self.routine_type.value)
         async def routine_entrypoint(signal: TModel):
             return await routine_step(signal)
 
@@ -149,7 +151,7 @@ class BaseSignalRoutine(Generic[TModel], ABC):
 class EventSignalRoutine(BaseSignalRoutine[TEvent]):
     @property
     def routine_type(self) -> SignalRoutineType:
-        return SignalRoutineType.EVENT
+        return SignalRoutineType.SUBSCRIBE
 
 
 class ReactiveSignalRoutine(BaseSignalRoutine[ReactiveSignal[TState]], Generic[TState, T]):
