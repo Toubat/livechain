@@ -1,13 +1,5 @@
 from inspect import iscoroutinefunction
-from typing import (
-    Any,
-    Awaitable,
-    Callable,
-    Coroutine,
-    Dict,
-    Optional,
-    overload,
-)
+from typing import Any, Awaitable, Callable, Coroutine, Dict, Optional, overload
 
 from langchain_core.runnables import RunnableConfig
 from langgraph.func import entrypoint
