@@ -1,6 +1,8 @@
 # LiveChain
 
-LiveChain is a Python package that integrates LiveKit with LangGraph and LangChain for building real-time AI agents. It provides tools for creating, managing, and deploying conversational AI systems with audio processing capabilities (soon).
+LiveChain is a Python framework for building real-time applications with AI agents. It adapts an event-driven approach to building reactive agentic workflows. The framework is also designed for building ambient agents that can operate in the background and react to events in the environment, enabling proactive behavior.
+
+It integrates LiveKit for real-time communication (soon), LangGraph for workflow management, and LangChain for building AI agents.
 
 ## Installation
 
@@ -10,8 +12,10 @@ pip install livechain
 
 ## Features
 
-- Integration with LiveKit for real-time communication
-- LangGraph-based workflow management
+- Fully compatible with LangGraph-based workflows
+- LangChain-based AI agents
+- Ambient agents that can operate in the background and react to events in the environment
+- Real-time communication with LiveKit (soon)
 
 ## Usage
 
@@ -72,7 +76,7 @@ async def entrypoint():
         await asyncio.sleep(1)
 
 # Create and run the workflow
-workflow = Workflow(entrypoint)
+workflow = Workflow(entrypoint, [handle_user_chat])
 executor = workflow.compile()
 
 @executor.recv("user_message")
