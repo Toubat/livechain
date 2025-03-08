@@ -45,9 +45,7 @@ async def test_entrypoint_method():
     # Create mock LangGraphInjectable with autospec
     mock_checkpointer = create_autospec(BaseCheckpointSaver, instance=True)
     mock_store = create_autospec(BaseStore, instance=True)
-    mock_injectable = LangGraphInjectable(
-        checkpointer=mock_checkpointer, store=mock_store, config_schema=MockConfig
-    )
+    mock_injectable = LangGraphInjectable(checkpointer=mock_checkpointer, store=mock_store, config_schema=MockConfig)
 
     # Get the entrypoint wrapper
     with patch("livechain.graph.func.root.entrypoint") as mock_entrypoint:
@@ -112,9 +110,7 @@ async def test_entrypoint_method_entrypoint_func_is_called_with_wrong_trigger():
     root_node = root()(mock_entrypoint_func)
     mock_injectable = LangGraphInjectable.from_empty()
 
-    with pytest.raises(
-        ValueError, match="Root entrypoint must be called with a TriggerSignal"
-    ):
+    with pytest.raises(ValueError, match="Root entrypoint must be called with a TriggerSignal"):
         await root_node.entrypoint(mock_injectable).ainvoke(1)
 
 
@@ -132,9 +128,7 @@ async def test_full_integration():
     # Create mock LangGraphInjectable with autospec
     mock_checkpointer = create_autospec(BaseCheckpointSaver, instance=True)
     mock_store = create_autospec(BaseStore, instance=True)
-    mock_injectable = LangGraphInjectable(
-        checkpointer=mock_checkpointer, store=mock_store, config_schema=MockConfig
-    )
+    mock_injectable = LangGraphInjectable(checkpointer=mock_checkpointer, store=mock_store, config_schema=MockConfig)
 
     # Use a simple passthrough for the entrypoint decorator
     with patch("livechain.graph.func.root.entrypoint") as mock_entrypoint:

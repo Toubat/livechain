@@ -4,14 +4,7 @@ from pydantic import BaseModel, PrivateAttr
 
 from livechain.graph.emitter import Emitter, emitter_factory
 from livechain.graph.persist.base import BaseStatePersister
-from livechain.graph.types import (
-    CronSignal,
-    EventSignal,
-    ReactiveSignal,
-    TopicSignal,
-    TriggerSignal,
-    TState,
-)
+from livechain.graph.types import CronSignal, EventSignal, ReactiveSignal, TopicSignal, TriggerSignal, TState
 
 
 def create_default_persister(state_schema: Type[TState]) -> BaseStatePersister[TState]:
@@ -25,9 +18,7 @@ class Context(BaseModel, Generic[TState]):
 
     _persister: BaseStatePersister[TState] = PrivateAttr()
 
-    _topic_emitter: Emitter[str, TopicSignal] = PrivateAttr(
-        default_factory=emitter_factory(lambda x: x.topic)
-    )
+    _topic_emitter: Emitter[str, TopicSignal] = PrivateAttr(default_factory=emitter_factory(lambda x: x.topic))
 
     _event_emitter: Emitter[Type[EventSignal], EventSignal] = PrivateAttr(
         default_factory=emitter_factory(lambda x: type(x))
@@ -37,13 +28,9 @@ class Context(BaseModel, Generic[TState]):
         default_factory=emitter_factory(lambda _: None)
     )
 
-    _cron_job_emitter: Emitter[str, CronSignal] = PrivateAttr(
-        default_factory=emitter_factory(lambda x: x.cron_id)
-    )
+    _cron_job_emitter: Emitter[str, CronSignal] = PrivateAttr(default_factory=emitter_factory(lambda x: x.cron_id))
 
-    _trigger_emitter: Emitter[None, TriggerSignal] = PrivateAttr(
-        default_factory=emitter_factory(lambda _: None)
-    )
+    _trigger_emitter: Emitter[None, TriggerSignal] = PrivateAttr(default_factory=emitter_factory(lambda _: None))
 
     def __init__(
         self,

@@ -2,6 +2,7 @@ test:
 	@uv run pytest -vv -s -n auto tests/livechain/
 
 lint:
+	@uv run ruff check .
 	@uv run ruff format --diff .
 
 format:

@@ -152,9 +152,7 @@ class EventSignalRoutine(BaseSignalRoutine[TEvent]):
         return SignalRoutineType.EVENT
 
 
-class ReactiveSignalRoutine(
-    BaseSignalRoutine[ReactiveSignal[TState]], Generic[TState, T]
-):
+class ReactiveSignalRoutine(BaseSignalRoutine[ReactiveSignal[TState]], Generic[TState, T]):
     def __init__(
         self,
         schema: Type[ReactiveSignal[TState]],
@@ -243,9 +241,7 @@ class SignalRoutineRunner(Generic[TModel], ABC):
             validated_signal = adapter.validate_python(signal)
             await self._signal_queue.put(validated_signal)
         except ValidationError as e:
-            logger.error(
-                f"Routine runner {self._name} of id {self.routine_id} received invalid data: {e}"
-            )
+            logger.error(f"Routine runner {self._name} of id {self.routine_id} received invalid data: {e}")
 
     @abstractmethod
     async def start(self):
@@ -270,9 +266,7 @@ class InterruptableSignalRoutineRunner(SignalRoutineRunner[TModel]):
                 break
 
             try_cancel_asyncio_task(self._current_task)
-            self._current_task = asyncio.create_task(
-                self._runnable.ainvoke(signal, config=self._config)
-            )
+            self._current_task = asyncio.create_task(self._runnable.ainvoke(signal, config=self._config))
 
         try_cancel_asyncio_task(self._current_task)
         logger.info(f"Routine runner {self._name} of id {self.routine_id} stopped")
@@ -291,8 +285,7 @@ class ParallelSignalRoutineRunner(SignalRoutineRunner[TModel]):
         self._tasks: Dict[uuid.UUID, asyncio.Task] = {}
 
     def _on_task_done(self, task_id: uuid.UUID):
-        if task_id in self._tasks:
-            self._tasks.pop(task_id)
+        self._tasks.pop(task_id)
 
     def _cancel_tasks(self):
         for task in self._tasks.values():
@@ -306,10 +299,8 @@ class ParallelSignalRoutineRunner(SignalRoutineRunner[TModel]):
                 break
 
             task_id = uuid.uuid4()
-            task = asyncio.create_task(
-                self._runnable.ainvoke(signal, config=self._config)
-            )
-            task.add_done_callback(lambda _: self._on_task_done(task_id))
+            task = asyncio.create_task(self._runnable.ainvoke(signal, config=self._config))
+            task.add_done_callback(lambda _, tid=task_id: self._on_task_done(tid))
             self._tasks[task_id] = task
 
         self._cancel_tasks()
@@ -337,16 +328,12 @@ class FifoSignalRoutineRunner(SignalRoutineRunner[TModel]):
                 break
 
             try:
-                self._current_task = asyncio.create_task(
-                    self._runnable.ainvoke(signal, config=self._config)
-                )
+                self._current_task = asyncio.create_task(self._runnable.ainvoke(signal, config=self._config))
                 await self._current_task
             except asyncio.CancelledError:
                 pass
             except Exception as e:
-                logger.error(
-                    f"Routine runner {self._name} of id {self.routine_id} received an exception: {e}"
-                )
+                logger.error(f"Routine runner {self._name} of id {self.routine_id} received an exception: {e}")
 
         try_cancel_asyncio_task(self._current_task)
         logger.info(f"Routine runner {self._name} of id {self.routine_id} stopped")
@@ -380,9 +367,7 @@ class DebounceSignalRoutineRunner(SignalRoutineRunner[TModel]):
                 break
 
             try_cancel_asyncio_task(self._current_task)
-            self._current_task = asyncio.create_task(
-                self._process_with_delay(signal, self._counter)
-            )
+            self._current_task = asyncio.create_task(self._process_with_delay(signal, self._counter))
 
         try_cancel_asyncio_task(self._current_task)
         logger.info(f"Routine runner {self._name} of id {self.routine_id} stopped")

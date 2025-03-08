@@ -56,9 +56,7 @@ def test_executor_init(simple_workflow):
 
 
 @pytest.mark.asyncio
-async def test_executor_start_validates_input(
-    simple_workflow, mock_checkpointer, mock_store
-):
+async def test_executor_start_validates_input(simple_workflow, mock_checkpointer, mock_store):
     def compile():
         return simple_workflow.compile(
             state_schema=MockState,
@@ -67,14 +65,10 @@ async def test_executor_start_validates_input(
             config_schema=MockConfig,
         )
 
-    with pytest.raises(
-        ValueError, match="Thread ID is required when using a checkpointer or store"
-    ):
+    with pytest.raises(ValueError, match="Thread ID is required when using a checkpointer or store"):
         compile().start()
 
-    with pytest.raises(
-        ValueError, match="Config is required when using a config schema"
-    ):
+    with pytest.raises(ValueError, match="Config is required when using a config schema"):
         compile().start(thread_id="1")
 
     with pytest.raises(
@@ -216,9 +210,7 @@ async def test_concurrent_event_and_cron_handling():
     executor.start()
 
     # Send 10 concurrent events
-    await asyncio.gather(
-        *[executor.publish_event(MockEvent(name=f"event-{i}")) for i in range(10)]
-    )
+    await asyncio.gather(*[executor.publish_event(MockEvent(name=f"event-{i}")) for i in range(10)])
 
     await asyncio.sleep(0.2)  # Allow time for processing
 
@@ -245,9 +237,7 @@ async def test_complex_reactive_workflow():
         state_changes.append("high-priority")
         await mutate_state(priority="high")
 
-    workflow = Workflow.from_nodes(
-        entrypoint, [handle_low_priority, handle_high_priority]
-    )
+    workflow = Workflow.from_nodes(entrypoint, [handle_low_priority, handle_high_priority])
     executor = workflow.compile(state_schema=MockState)
     executor.start()
 
@@ -301,9 +291,7 @@ async def test_retry_mechanism_for_failed_steps():
     await unreliable_done.wait()
     await callback_done.wait()
 
-    assert attempts == 3, (
-        f"Should retry 3 times before succeeding, but only succeeded {attempts} times"
-    )
+    assert attempts == 3, f"Should retry 3 times before succeeding, but only succeeded {attempts} times"
     callback.assert_called_once()
 
 
@@ -368,9 +356,7 @@ async def test_high_load_state_mutations():
     executor.start()
 
     # Send 100 rapid mutations
-    await asyncio.gather(
-        *[executor.mutate_state(MockState(count=i)) for i in range(1, 101)]
-    )
+    await asyncio.gather(*[executor.mutate_state(MockState(count=i)) for i in range(1, 101)])
 
     await asyncio.sleep(1)
     assert mutation_count == 100, "Should handle all state mutations"

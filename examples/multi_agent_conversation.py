@@ -1,25 +1,16 @@
 import asyncio
-import queue
-import threading
-from functools import reduce
 from typing import Annotated, Dict, List, Literal, cast
 
 from dotenv import find_dotenv, load_dotenv
-from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AnyMessage, HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI
 from langgraph.graph import add_messages
 from pydantic import BaseModel, Field
 
 from livechain.graph.executor import Workflow, WorkflowExecutor
-from livechain.graph.func import reactive, root, step, subscribe
-from livechain.graph.ops import (
-    channel_send,
-    get_config,
-    get_state,
-    mutate_state,
-    trigger_workflow,
-)
+from livechain.graph.func import root, step, subscribe
+from livechain.graph.ops import channel_send, get_config, get_state, mutate_state, trigger_workflow
 from livechain.graph.types import EventSignal, TriggerSignal
 
 load_dotenv(find_dotenv())
@@ -142,9 +133,7 @@ async def main():
                     continue
 
                 # only next agent in the circle should speak
-                should_speak = (keys.index(agent_type) + 1) % len(keys) == keys.index(
-                    other_agent_type
-                )
+                should_speak = (keys.index(agent_type) + 1) % len(keys) == keys.index(other_agent_type)
 
                 other_agent_executor = agent_executors[other_agent_type]
                 await other_agent_executor.publish_event(

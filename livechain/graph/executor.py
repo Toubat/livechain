@@ -156,41 +156,27 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
             validated_config = config
 
         cron_jobs: Dict[str, CronExpr] = {}
-        runnable_config = make_config_from_context(
-            self._context, thread_id, validated_config
-        )
+        runnable_config = make_config_from_context(self._context, thread_id, validated_config)
 
         for event_routine in self._event_routines:
-            routine_runner = event_routine.create_runner(
-                config=runnable_config, injectable=self._injectable
-            )
+            routine_runner = event_routine.create_runner(config=runnable_config, injectable=self._injectable)
             self._runners.append(routine_runner)
-            self._context.events.subscribe(
-                event_routine.schema, callback=routine_runner
-            )
+            self._context.events.subscribe(event_routine.schema, callback=routine_runner)
 
         for cron_routine in self._cron_routines:
-            routine_runner = cron_routine.create_runner(
-                config=runnable_config, injectable=self._injectable
-            )
+            routine_runner = cron_routine.create_runner(config=runnable_config, injectable=self._injectable)
             cron_jobs[routine_runner.routine_id] = cron_routine.cron_expr
             self._runners.append(routine_runner)
-            self._context.cron_jobs.subscribe(
-                routine_runner.routine_id, callback=routine_runner
-            )
+            self._context.cron_jobs.subscribe(routine_runner.routine_id, callback=routine_runner)
 
         for reactive_routine in self._reactive_routines:
-            routine_runner = reactive_routine.create_runner(
-                config=runnable_config, injectable=self._injectable
-            )
+            routine_runner = reactive_routine.create_runner(config=runnable_config, injectable=self._injectable)
             conditional_callback = _with_cond(reactive_routine.cond, routine_runner)
             self._runners.append(routine_runner)
             self._context.effects.subscribe(callback=conditional_callback)
 
         # register a callback to trigger the main workflow and cancel any already running workflow
-        self._context.trigger.subscribe(
-            callback=self._create_trigger_workflow_coroutine(runnable_config)
-        )
+        self._context.trigger.subscribe(callback=self._create_trigger_workflow_coroutine(runnable_config))
 
         self._executor_tasks = [
             asyncio.create_task(self._schedule_cron_jobs(cron_jobs)),
@@ -275,7 +261,7 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
             asyncio.create_task(self._run_cron_job(cron_id))
 
     async def _stream_workflow(self, trigger: TriggerSignal, config: RunnableConfig):
-        async for part in self._workflow_entrypoint.astream(trigger, config=config):
+        async for _part in self._workflow_entrypoint.astream(trigger, config=config):
             ...
 
     def _create_trigger_workflow_coroutine(
@@ -286,9 +272,7 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
             if self._workflow_task is not None:
                 self._workflow_task.cancel()
 
-            self._workflow_task = asyncio.create_task(
-                self._stream_workflow(trigger, config)
-            )
+            self._workflow_task = asyncio.create_task(self._stream_workflow(trigger, config))
             await self._workflow_task
 
         return _stream_workflow

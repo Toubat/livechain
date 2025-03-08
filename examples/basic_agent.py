@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 from livechain.graph.executor import Workflow
 from livechain.graph.func import reactive, root, step, subscribe
-from livechain.graph.ops import channel_send, get_state, mutate_state, trigger_workflow
+from livechain.graph.ops import get_state, mutate_state, trigger_workflow
 from livechain.graph.types import EventSignal
 
 load_dotenv(find_dotenv())
@@ -33,15 +33,11 @@ class RemindUser(BaseModel):
     )
 
     def to_message(self) -> HumanMessage:
-        return HumanMessage(
-            content=f"{self.remind_after} seconds has passed, time to remind user about {self.task}."
-        )
+        return HumanMessage(content=f"{self.remind_after} seconds has passed, time to remind user about {self.task}.")
 
 
 class CallReminder(BaseModel):
-    reminder: RemindUser | None = Field(
-        default=None, description="The reminder to call"
-    )
+    reminder: RemindUser | None = Field(default=None, description="The reminder to call")
 
 
 @step()
@@ -63,7 +59,6 @@ async def chat_with_user():
     llm = ChatOpenAI(model="gpt-4o-mini")
 
     state = get_state(AgentState)
-    chunks = []
     # await channel_send("assistant", "\nAssistant: ")
     # async for chunk in llm.astream(state.messages):
     #     chunks.append(chunk.content)
@@ -158,9 +153,7 @@ async def main():
             continue
 
         print(f"You: {message}")
-        await executor.publish_event(
-            UserChatEvent(message=HumanMessage(content=message))
-        )
+        await executor.publish_event(UserChatEvent(message=HumanMessage(content=message)))
         await asyncio.sleep(12)
 
     await asyncio.sleep(3)

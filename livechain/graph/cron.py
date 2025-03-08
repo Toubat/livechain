@@ -37,9 +37,7 @@ class Linear(CronExpr):
 
     step_seconds: float = Field(..., gt=0, description="step time in seconds")
 
-    max_interval_seconds: float = Field(
-        ..., gt=0, description="max interval between ticks in seconds"
-    )
+    max_interval_seconds: float = Field(..., gt=0, description="max interval between ticks in seconds")
 
     _count: int = PrivateAttr(default=0)
 
@@ -57,9 +55,7 @@ class Exp(CronExpr):
 
     exponent: float = Field(..., ge=1, description="exponent")
 
-    max_interval_seconds: float = Field(
-        ..., gt=0, description="max interval between ticks in seconds"
-    )
+    max_interval_seconds: float = Field(..., gt=0, description="max interval between ticks in seconds")
 
     _count: int = PrivateAttr(default=0)
 
@@ -79,10 +75,7 @@ class CronJobScheduler(BaseModel):
         if len(self.cron_jobs) == 0:
             return
 
-        cron_job_pq = [
-            (cron_expr.next_tick(), cron_id, cron_expr)
-            for cron_id, cron_expr in self.cron_jobs.items()
-        ]
+        cron_job_pq = [(cron_expr.next_tick(), cron_id, cron_expr) for cron_id, cron_expr in self.cron_jobs.items()]
         heapify(cron_job_pq)
 
         while True:

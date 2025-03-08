@@ -38,9 +38,7 @@ def create_cron_routine(mode: SignalStrategy, func: Callable[[], Awaitable[Any]]
     return test_cron
 
 
-def create_reactive_routine(
-    mode: SignalStrategy, func: Callable[[MockState, MockState], Awaitable[Any]]
-):
+def create_reactive_routine(mode: SignalStrategy, func: Callable[[MockState, MockState], Awaitable[Any]]):
     @reactive(MockState, lambda state: state.count, strategy=mode)
     async def test_reactive(old_state: MockState, new_state: MockState):
         return await func(old_state, new_state)
@@ -48,9 +46,7 @@ def create_reactive_routine(
     return test_reactive
 
 
-def create_event_routine(
-    mode: SignalStrategy, func: Callable[[MockEvent], Awaitable[Any]]
-):
+def create_event_routine(mode: SignalStrategy, func: Callable[[MockEvent], Awaitable[Any]]):
     @subscribe(MockEvent, strategy=mode)
     async def test_subscriber(event: MockEvent):
         return await func(event)
@@ -105,8 +101,10 @@ async def test_subscribe_runnable_execution():
 
 def test_reactive_decorator():
     """Test the reactive decorator creates a ReactiveSignalRoutine."""
+
     # Define a condition to watch for changes
-    watched_value = lambda state: state.count
+    def watched_value(state):
+        return state.count
 
     @reactive(MockState, watched_value, strategy=Mode.Interrupt())
     async def test_reactive(old_state: MockState, new_state: MockState):
@@ -125,8 +123,10 @@ def test_reactive_decorator():
 @pytest.mark.asyncio
 async def test_reactive_execution():
     """Test the reactive decorator function's execution flow."""
+
     # Define a condition to watch for changes
-    watched_value = lambda state: state.count
+    def watched_value(state):
+        return state.count
 
     # Define the reactive effect
     effect_calls = []
@@ -186,7 +186,7 @@ async def test_cron_execution():
     runnable = test_cron.create_routine_runnable()
 
     signal = CronSignal(cron_id="test_cron_job")
-    result = await runnable.ainvoke(signal)
+    await runnable.ainvoke(signal)
 
     # Verify the effect was called
     assert len(effect_calls) == 1
@@ -202,10 +202,10 @@ async def test_subscribe_multiple_modes():
 
     sub_parallel = create_event_routine(Mode.Parallel(), test_subscriber)
     sub_queue = create_event_routine(Mode.Queue(), test_subscriber)
-    sub_interrupt = create_event_routine(Mode.Interrupt(), test_subscriber)
+    create_event_routine(Mode.Interrupt(), test_subscriber)
 
-    runnable_parallel = sub_parallel.create_routine_runnable()
-    runnable_queue = sub_queue.create_routine_runnable()
+    sub_parallel.create_routine_runnable()
+    sub_queue.create_routine_runnable()
 
 
 @pytest.mark.asyncio
@@ -312,10 +312,7 @@ async def test_runner_behavior_parallel_mode():
 
     # All starts should happen before any ends
     # (this is true because our sleep time is the same for all tasks)
-    assert all(
-        exec_history.index(start) < exec_history.index(f"end-{start[6:]}")
-        for start in starts
-    )
+    assert all(exec_history.index(start) < exec_history.index(f"end-{start[6:]}") for start in starts)
 
     # The starts should be in order (first, second, third)
     # because we send them sequentially

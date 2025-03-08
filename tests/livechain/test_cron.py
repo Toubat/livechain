@@ -2,15 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
-from livechain.graph.cron import (
-    CronJobScheduler,
-    Exp,
-    Interval,
-    Linear,
-    exp,
-    interval,
-    linear,
-)
+from livechain.graph.cron import CronJobScheduler, Exp, Interval, Linear, exp, interval, linear
 
 
 class TestCronExpressions:
@@ -25,9 +17,7 @@ class TestCronExpressions:
     def test_linear(self):
         """Test that Linear correctly calculates next ticks with increasing intervals."""
         with patch("livechain.graph.cron.now", return_value=100.0):
-            linear_expr = Linear(
-                base_seconds=10, step_seconds=5, max_interval_seconds=30
-            )
+            linear_expr = Linear(base_seconds=10, step_seconds=5, max_interval_seconds=30)
 
             # First call: base + (step * 0) = 10 + 0 = 10
             assert linear_expr.next_tick() == 110.0
@@ -76,8 +66,8 @@ class TestCronJobScheduler:
     async def test_scheduler_no_jobs(self):
         """Test that scheduler with no jobs does nothing."""
         scheduler = CronJobScheduler(cron_jobs={})
-        async for job in scheduler.schedule():
-            assert False
+        async for _job in scheduler.schedule():
+            raise AssertionError()
 
     @pytest.mark.asyncio
     async def test_scheduler_basic_intervals(self):
@@ -197,9 +187,7 @@ class TestCronJobScheduler:
             # Intervals: 5, 10, 15, 20, 20, ...
             scheduler = CronJobScheduler(
                 cron_jobs={
-                    "linear_job": Linear(
-                        base_seconds=5, step_seconds=5, max_interval_seconds=20
-                    ),
+                    "linear_job": Linear(base_seconds=5, step_seconds=5, max_interval_seconds=20),
                 }
             )
 
@@ -286,9 +274,7 @@ class TestCronJobScheduler:
             scheduler = CronJobScheduler(
                 cron_jobs={
                     "interval_job": Interval(seconds=8),
-                    "linear_job": Linear(
-                        base_seconds=5, step_seconds=5, max_interval_seconds=30
-                    ),
+                    "linear_job": Linear(base_seconds=5, step_seconds=5, max_interval_seconds=30),
                     "exp_job": Exp(base_seconds=3, exponent=2, max_interval_seconds=25),
                 }
             )

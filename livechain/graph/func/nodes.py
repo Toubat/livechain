@@ -37,21 +37,10 @@ def step(
     def step_wrapper(
         func: Callable[P, Awaitable[T]],
     ) -> Callable[P, SyncAsyncFuture[T]]:
-        func_name = (
-            name
-            if name is not None
-            else func.name
-            if isinstance(func, SignalRoutineRunner)
-            else func.__name__
-        )
+        func_name = name if name is not None else func.name if isinstance(func, SignalRoutineRunner) else func.__name__
 
-        if not asyncio.iscoroutinefunction(func) and not isinstance(
-            func, SignalRoutineRunner
-        ):
-            raise ValueError(
-                "Step function must be async or a SignalRoutineRunner, got %s"
-                % type(func)
-            )
+        if not asyncio.iscoroutinefunction(func) and not isinstance(func, SignalRoutineRunner):
+            raise ValueError("Step function must be async or a SignalRoutineRunner, got %s" % type(func))
 
         @task(name=func_name, retry=retry)
         async def step_wrapper_task(*args: P.args, **kwargs: P.kwargs) -> T:

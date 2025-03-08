@@ -9,17 +9,11 @@ from livechain.graph.types import T, THashable
 class Emitter(BaseModel, Generic[THashable, T]):
     get_hash: Callable[[T], THashable]
 
-    _subscribers: Dict[THashable, Set[Callable[[T], Awaitable[Any]]]] = PrivateAttr(
-        default_factory=dict
-    )
+    _subscribers: Dict[THashable, Set[Callable[[T], Awaitable[Any]]]] = PrivateAttr(default_factory=dict)
 
-    _default_subscribers: Set[Callable[[T], Awaitable[Any]]] = PrivateAttr(
-        default_factory=set
-    )
+    _default_subscribers: Set[Callable[[T], Awaitable[Any]]] = PrivateAttr(default_factory=set)
 
-    _callback_to_hash: Dict[Callable[[T], Awaitable[Any]], Optional[THashable]] = (
-        PrivateAttr(default_factory=dict)
-    )
+    _callback_to_hash: Dict[Callable[[T], Awaitable[Any]], Optional[THashable]] = PrivateAttr(default_factory=dict)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 

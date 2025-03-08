@@ -274,7 +274,7 @@ async def test_emitter_call_outside_context(event_emitter):
     event = IntEvent(data=42)
 
     # Call emit directly without run_in_context
-    with pytest.raises(Exception):
+    with pytest.raises(RuntimeError):
         await event_emitter.emit(event)
 
 

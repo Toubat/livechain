@@ -1,6 +1,6 @@
 import sys
 
-from langgraph.constants import CONF  # type: ignore
+from langgraph.constants import CONF  # noqa: F401
 
 SENTINEL = object()  # Unique sentinel value
 

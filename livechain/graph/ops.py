@@ -51,9 +51,7 @@ def mutate_state(state_patch: Dict[str, Any]) -> SyncAsyncFuture[List[Any]]: ...
 def mutate_state(**kwargs: Any) -> SyncAsyncFuture[List[Any]]: ...
 
 
-def mutate_state(
-    state_patch: Optional[Dict[str, Any]] = None, **kwargs: Any
-) -> SyncAsyncFuture[List[Any]]:
+def mutate_state(state_patch: Optional[Dict[str, Any]] = None, **kwargs: Any) -> SyncAsyncFuture[List[Any]]:
     if state_patch is None:
         return _mutate_state(kwargs)
     else:

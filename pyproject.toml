@@ -57,20 +57,23 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 
 [tool.black]
-line-length = 88
+line-length = 120
 target-version = ["py311"]
 
 [tool.isort]
 profile = "black"
-line_length = 88
+line_length = 120
 
 [tool.ruff]
-line-length = 88
-target-version = "py312"
+line-length = 120
+target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "B", "I"]
 ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+"examples/*" = ["E501"]
 
 [tool.mypy]
 python_version = "3.12"

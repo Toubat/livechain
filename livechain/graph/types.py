@@ -1,16 +1,6 @@
 from __future__ import annotations
 
-from typing import (
-    Any,
-    Awaitable,
-    Callable,
-    Generic,
-    Hashable,
-    Optional,
-    Protocol,
-    Type,
-    TypeVar,
-)
+from typing import Any, Awaitable, Callable, Generic, Hashable, Optional, Protocol, Type, TypeVar
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.store.base import BaseStore
@@ -68,9 +58,7 @@ class Subscriber(Protocol, Generic[TModel_contra]):
 
 
 class ReactiveEffect(Protocol, Generic[TState_contra]):
-    def __call__(
-        self, old_state: TState_contra, new_state: TState_contra
-    ) -> Awaitable[Any]: ...
+    def __call__(self, old_state: TState_contra, new_state: TState_contra) -> Awaitable[Any]: ...
 
 
 class CronEffect(Protocol):
