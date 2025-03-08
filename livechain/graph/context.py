@@ -1,6 +1,6 @@
 from typing import Any, Dict, Generic, Optional, Type
 
-from pydantic import BaseModel, Field, PrivateAttr
+from pydantic import BaseModel, PrivateAttr
 
 from livechain.graph.emitter import Emitter, emitter_factory
 from livechain.graph.persist.base import BaseStatePersister

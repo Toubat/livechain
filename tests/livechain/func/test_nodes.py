@@ -1,6 +1,5 @@
 import asyncio
-from typing import Any, Awaitable, Callable, Dict, List, Optional
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Any, Awaitable, Callable, Dict, Optional
 
 import pytest
 from pydantic import BaseModel
@@ -15,7 +14,7 @@ from livechain.graph.func.routine import (
     SignalRoutineType,
     SignalStrategy,
 )
-from livechain.graph.types import CronSignal, EventSignal, ReactiveSignal, WatchedValue
+from livechain.graph.types import CronSignal, EventSignal, ReactiveSignal
 from livechain.graph.utils import run_in_context
 
 

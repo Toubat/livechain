@@ -2,13 +2,12 @@ test:
 	@uv run pytest -vv -s -n auto tests/livechain/
 
 lint:
-	@uv run ruff livechain tests
-	@uv run black --check livechain tests
-	@uv run isort --check livechain tests
+	@uv run ruff format --diff .
 
 format:
-	@uv run black livechain tests
-	@uv run isort livechain tests
+	@uv run black .
+	@uv run isort .
+	@uv run ruff format .
 
 mypy:
 	@uv run mypy livechain

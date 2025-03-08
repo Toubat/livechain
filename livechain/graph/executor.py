@@ -23,7 +23,6 @@ from livechain.graph.func.routine import (
 )
 from livechain.graph.persist.base import BaseStatePersister
 from livechain.graph.types import (
-    CronSignal,
     EventSignal,
     LangGraphInjectable,
     ReactiveSignal,

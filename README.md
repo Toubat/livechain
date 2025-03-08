@@ -58,7 +58,7 @@ async def chat_with_user():
 # Set up event handlers
 @subscribe(UserChatEvent)
 async def handle_user_chat(event: UserChatEvent):
-    await mutate_state(AgentState, lambda s: {"messages": [event.message]})
+    await mutate_state({"messages": [event.message]})
     await channel_send("user_message", event.message.content)
 
 # Define the entry point
@@ -73,7 +73,19 @@ async def entrypoint():
 
 # Create and run the workflow
 workflow = Workflow(entrypoint)
-workflow.run()
+executor = workflow.compile()
+
+@executor.recv("user_message")
+async def handle_user_message(message: str):
+    ...
+
+executor.start()
+
+# trigger the workflow
+executor.trigger_workflow()
+
+# send events to the workflow
+executor.publish_event(UserChatEvent(message=HumanMessage(content="Hello, how are you?")))
 ```
 
 For more advanced examples, check the `examples/` directory in the source code.

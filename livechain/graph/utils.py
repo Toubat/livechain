@@ -1,5 +1,3 @@
-import asyncio
-from functools import wraps
 from inspect import iscoroutinefunction
 from typing import (
     Any,
@@ -7,9 +5,7 @@ from typing import (
     Callable,
     Coroutine,
     Dict,
-    List,
     Optional,
-    Type,
     overload,
 )
 

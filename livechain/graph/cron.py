@@ -1,7 +1,6 @@
 import asyncio
 import time
 from abc import ABC, abstractmethod
-from datetime import datetime
 from heapq import heapify, heappop, heappush
 from typing import Dict
 
@@ -66,7 +65,8 @@ class Exp(CronExpr):
 
     def next_tick(self) -> UnixTime:
         next_tick = now() + min(
-            self.base_seconds * (self.exponent**self._count), self.max_interval_seconds
+            self.base_seconds * (self.exponent**self._count),
+            self.max_interval_seconds,
         )
         self._count += 1
         return next_tick

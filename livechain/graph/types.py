@@ -6,7 +6,6 @@ from typing import (
     Callable,
     Generic,
     Hashable,
-    List,
     Optional,
     Protocol,
     Type,

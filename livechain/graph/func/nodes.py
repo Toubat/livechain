@@ -1,7 +1,7 @@
 import asyncio
 import functools
 from functools import wraps
-from typing import Any, Awaitable, Callable, List, Optional, Type
+from typing import Awaitable, Callable, Optional, Type
 
 from langgraph.func import task
 from langgraph.pregel.call import SyncAsyncFuture
