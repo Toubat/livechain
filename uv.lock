@@ -949,6 +949,8 @@ dev = [
 dev = [
     { name = "aioconsole" },
     { name = "build" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-xdist" },
     { name = "twine" },
 ]
 
@@ -978,6 +980,8 @@ provides-extras = ["dev"]
 dev = [
     { name = "aioconsole", specifier = ">=0.8.1" },
     { name = "build", specifier = ">=1.2.2.post1" },
+    { name = "pytest-asyncio", specifier = ">=0.25.3" },
+    { name = "pytest-xdist", specifier = ">=3.6.1" },
     { name = "twine", specifier = ">=6.1.0" },
 ]
 

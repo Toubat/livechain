@@ -60,7 +60,6 @@ def test_executor_init(simple_workflow):
 async def test_executor_start_validates_input(
     simple_workflow, mock_checkpointer, mock_store
 ):
-
     def compile():
         return simple_workflow.compile(
             state_schema=MockState,
@@ -303,9 +302,9 @@ async def test_retry_mechanism_for_failed_steps():
     await unreliable_done.wait()
     await callback_done.wait()
 
-    assert (
-        attempts == 3
-    ), f"Should retry 3 times before succeeding, but only succeeded {attempts} times"
+    assert attempts == 3, (
+        f"Should retry 3 times before succeeding, but only succeeded {attempts} times"
+    )
     callback.assert_called_once()
 
 

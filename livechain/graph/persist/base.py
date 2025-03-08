@@ -7,7 +7,6 @@ from livechain.graph.types import TState
 
 
 class BaseStatePersister(BaseModel, Generic[TState], ABC):
-
     state_schema: Type[TState]
 
     _cached_state: TState | None = PrivateAttr(default=None)

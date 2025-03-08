@@ -81,5 +81,7 @@ disallow_incomplete_defs = true
 dev = [
     "aioconsole>=0.8.1",
     "build>=1.2.2.post1",
+    "pytest-asyncio>=0.25.3",
+    "pytest-xdist>=3.6.1",
     "twine>=6.1.0",
 ]

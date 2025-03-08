@@ -58,7 +58,6 @@ def run_in_context(
 def run_in_context(
     func: Callable[..., Any] | Callable[..., Awaitable[Any]],
 ) -> Callable[..., Any] | Callable[..., Awaitable[Any]]:
-
     @entrypoint()
     async def run_async_in_context_wrapper(input: Any):
         return await func()

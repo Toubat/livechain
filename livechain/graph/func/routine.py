@@ -30,7 +30,6 @@ logger = logging.getLogger(__name__)
 
 
 class Mode:
-
     @dataclass
     class Interrupt:
         pass
@@ -67,7 +66,6 @@ def default_signal_strategy() -> Mode.Parallel:
 
 
 class BaseSignalRoutine(Generic[TModel], ABC):
-
     def __init__(
         self,
         schema: Type[TModel],
@@ -149,7 +147,6 @@ class BaseSignalRoutine(Generic[TModel], ABC):
 
 
 class EventSignalRoutine(BaseSignalRoutine[TEvent]):
-
     @property
     def routine_type(self) -> SignalRoutineType:
         return SignalRoutineType.EVENT
@@ -158,7 +155,6 @@ class EventSignalRoutine(BaseSignalRoutine[TEvent]):
 class ReactiveSignalRoutine(
     BaseSignalRoutine[ReactiveSignal[TState]], Generic[TState, T]
 ):
-
     def __init__(
         self,
         schema: Type[ReactiveSignal[TState]],
@@ -187,7 +183,6 @@ class ReactiveSignalRoutine(
 
 
 class CronSignalRoutine(BaseSignalRoutine[CronSignal]):
-
     def __init__(
         self,
         schema: Type[CronSignal],
@@ -210,7 +205,6 @@ class CronSignalRoutine(BaseSignalRoutine[CronSignal]):
 
 
 class SignalRoutineRunner(Generic[TModel], ABC):
-
     def __init__(
         self,
         schema: Type[TModel],
@@ -263,7 +257,6 @@ class SignalRoutineRunner(Generic[TModel], ABC):
 
 
 class InterruptableSignalRoutineRunner(SignalRoutineRunner[TModel]):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -292,7 +285,6 @@ class InterruptableSignalRoutineRunner(SignalRoutineRunner[TModel]):
 
 
 class ParallelSignalRoutineRunner(SignalRoutineRunner[TModel]):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -332,7 +324,6 @@ class ParallelSignalRoutineRunner(SignalRoutineRunner[TModel]):
 
 
 class FifoSignalRoutineRunner(SignalRoutineRunner[TModel]):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

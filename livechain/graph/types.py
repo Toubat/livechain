@@ -37,7 +37,6 @@ EntrypointFunc = Callable[[], Awaitable[None]]
 
 
 class EventSignal(BaseModel):
-
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
@@ -62,24 +61,20 @@ class TriggerSignal(BaseModel): ...
 
 
 class WatchedValue(Protocol, Generic[TState_contra, T_cov]):
-
     def __call__(self, state: TState_contra) -> T_cov: ...
 
 
 class Subscriber(Protocol, Generic[TModel_contra]):
-
     def __call__(self, event: TModel_contra) -> Awaitable[Any]: ...
 
 
 class ReactiveEffect(Protocol, Generic[TState_contra]):
-
     def __call__(
         self, old_state: TState_contra, new_state: TState_contra
     ) -> Awaitable[Any]: ...
 
 
 class CronEffect(Protocol):
-
     def __call__(self) -> Awaitable[Any]: ...
 
 

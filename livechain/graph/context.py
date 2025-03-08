@@ -21,7 +21,6 @@ def create_default_persister(state_schema: Type[TState]) -> BaseStatePersister[T
 
 
 class Context(BaseModel, Generic[TState]):
-
     state_schema: Type[TState]
 
     _persister: BaseStatePersister[TState] = PrivateAttr()

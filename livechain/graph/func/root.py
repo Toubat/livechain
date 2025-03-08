@@ -8,7 +8,6 @@ from livechain.graph.types import EntrypointFunc, LangGraphInjectable, TriggerSi
 
 
 class Root(BaseModel):
-
     entrypoint_func: EntrypointFunc
 
     def entrypoint(self, injectable: LangGraphInjectable):

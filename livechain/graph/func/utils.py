@@ -12,7 +12,7 @@ def wrap_in_step(func: Callable[P, Awaitable[T]]) -> Callable[P, SyncAsyncFuture
 
 
 def step_gather(
-    *funcs: Callable[P, Awaitable[T]]
+    *funcs: Callable[P, Awaitable[T]],
 ) -> Callable[P, SyncAsyncFuture[List[T]]]:
     substeps = [wrap_in_step(func) for func in funcs]
 

@@ -7,7 +7,6 @@ from livechain.graph.types import T, THashable
 
 
 class Emitter(BaseModel, Generic[THashable, T]):
-
     get_hash: Callable[[T], THashable]
 
     _subscribers: Dict[THashable, Set[Callable[[T], Awaitable[Any]]]] = PrivateAttr(
@@ -64,7 +63,7 @@ class Emitter(BaseModel, Generic[THashable, T]):
 
 
 def emitter_factory(
-    get_hash: Callable[[T], THashable]
+    get_hash: Callable[[T], THashable],
 ) -> Callable[[], Emitter[THashable, T]]:
     def create_emitter() -> Emitter[THashable, T]:
         return Emitter(get_hash=get_hash)

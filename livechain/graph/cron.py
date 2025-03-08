@@ -21,14 +21,12 @@ Day = Hour * 24
 
 
 class CronExpr(BaseModel, ABC):
-
     @abstractmethod
     def next_tick(self) -> UnixTime:
         pass
 
 
 class Interval(CronExpr):
-
     seconds: float = Field(..., gt=0, description="time in seconds")
 
     def next_tick(self) -> UnixTime:
@@ -36,7 +34,6 @@ class Interval(CronExpr):
 
 
 class Linear(CronExpr):
-
     base_seconds: float = Field(..., ge=0, description="base time in seconds")
 
     step_seconds: float = Field(..., gt=0, description="step time in seconds")
@@ -57,7 +54,6 @@ class Linear(CronExpr):
 
 
 class Exp(CronExpr):
-
     base_seconds: float = Field(..., gt=0, description="base time in seconds")
 
     exponent: float = Field(..., ge=1, description="exponent")
@@ -77,7 +73,6 @@ class Exp(CronExpr):
 
 
 class CronJobScheduler(BaseModel):
-
     cron_jobs: Dict[str, CronExpr]
 
     async def schedule(self):

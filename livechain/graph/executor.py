@@ -40,7 +40,6 @@ logger = logging.getLogger(__name__)
 
 
 class Workflow(BaseModel, Generic[TState, TConfig, TTopic]):
-
     root: Root
 
     routines: List[BaseSignalRoutine]
@@ -104,7 +103,6 @@ class Workflow(BaseModel, Generic[TState, TConfig, TTopic]):
 
 
 class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
-
     _injectable: LangGraphInjectable = PrivateAttr()
 
     _workflow_entrypoint: Pregel = PrivateAttr()
@@ -301,7 +299,6 @@ def _with_cond(
     cond: WatchedValue[TState, Any],
     runner: SignalRoutineRunner[ReactiveSignal[TState]],
 ) -> Callable[[ReactiveSignal[TState]], Awaitable[None]]:
-
     async def reactive_routine_wrapper(signal: ReactiveSignal[TState]):
         if cond(signal.old_state) == cond(signal.new_state):
             return

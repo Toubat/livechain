@@ -140,7 +140,6 @@ executor = workflow.compile(AgentState)
 
 
 async def main():
-
     @executor.recv("assistant")
     async def handle_assistant_message(message: str):
         print(message)

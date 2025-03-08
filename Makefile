@@ -1,10 +1,5 @@
-.PHONY: run-agent test lint format mypy build clean publish
-
-run-agent:
-	@uv run python examples/test_agent.py dev
-
 test:
-	@uv run python -m pytest -vv -s -n auto tests/livechain/
+	@uv run pytest -vv -s -n auto tests/livechain/
 
 lint:
 	@uv run ruff livechain tests
@@ -27,8 +22,3 @@ clean:
 	@find . -type d -name "*.egg-info" -exec rm -rf {} +
 	@find . -type f -name "*.pyc" -delete
 
-publish: build
-	@uv run twine upload dist/*
-
-dev-setup:
-	@uv pip install -e ".[dev]"

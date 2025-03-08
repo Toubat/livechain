@@ -27,7 +27,6 @@ def create_base_graph(state_schema: Type[TState]):
 
 
 class LocalStatePersister(BaseStatePersister[TState]):
-
     _graph: CompiledStateGraph = PrivateAttr()
 
     def __init__(self, state_schema: Type[TState]):

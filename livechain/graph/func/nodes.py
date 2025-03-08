@@ -40,7 +40,9 @@ def step(
         func_name = (
             name
             if name is not None
-            else func.name if isinstance(func, SignalRoutineRunner) else func.__name__
+            else func.name
+            if isinstance(func, SignalRoutineRunner)
+            else func.__name__
         )
 
         if not asyncio.iscoroutinefunction(func) and not isinstance(
@@ -69,7 +71,6 @@ def subscribe(
     name: Optional[str] = None,
     retry: Optional[RetryPolicy] = None,
 ) -> Callable[[Subscriber[TEvent]], EventSignalRoutine[TEvent]]:
-
     def subscribe_decorator(
         subscriber: Subscriber[TEvent],
     ) -> EventSignalRoutine[TEvent]:
@@ -92,11 +93,9 @@ def reactive(
     name: Optional[str] = None,
     retry: Optional[RetryPolicy] = None,
 ) -> Callable[[ReactiveEffect[TState]], ReactiveSignalRoutine[TState, T]]:
-
     def reactive_decorator(
         effect: ReactiveEffect[TState],
     ) -> ReactiveSignalRoutine[TState, T]:
-
         @wraps(effect)
         async def effect_wrapper(signal: ReactiveSignal[TState]):
             return await effect(signal.old_state, signal.new_state)
@@ -121,11 +120,9 @@ def cron(
     name: Optional[str] = None,
     retry: Optional[RetryPolicy] = None,
 ) -> Callable[[CronEffect], CronSignalRoutine]:
-
     def cron_decorator(
         cron_effect: CronEffect,
     ) -> CronSignalRoutine:
-
         @wraps(cron_effect)
         async def cron_wrapper(signal: CronSignal):
             return await cron_effect()
