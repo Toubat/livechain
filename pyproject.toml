@@ -1,7 +1,7 @@
 [project]
 name = "livechain"
 version = "0.1.0"
-description = "A framework for building conversational AI agents with LiveKit and LangGraph"
+description = "A framework for building reactive realtime AI agents with LiveKit, LangGraph, and LangChain"
 authors = [{ name = "Brian Yin", email = "toubatbrian@gmail.com" }]
 requires-python = "~=3.12"
 readme = "README.md"
@@ -14,7 +14,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
-keywords = ["ai", "voice", "agent", "livekit", "langgraph", "langchain"]
+keywords = ["ai", "llm", "realtime", "agent", "langgraph", "langchain"]
 dependencies = [
     "livekit-agents",
     "langgraph",
@@ -80,4 +80,6 @@ disallow_incomplete_defs = true
 [dependency-groups]
 dev = [
     "aioconsole>=0.8.1",
+    "build>=1.2.2.post1",
+    "twine>=6.1.0",
 ]

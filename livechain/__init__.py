@@ -1,7 +1,3 @@
-"""
-LiveChain - A framework for building conversational AI agents with LiveKit and LangGraph
-"""
-
 __version__ = "0.1.0"
 
 # Import main modules

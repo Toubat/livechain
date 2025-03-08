@@ -1,8 +1,10 @@
 name: Upload Python Package
 
 on:
-  release:
-    types: [created]
+  push:
+    tags:
+      # Publish on any tag starting with a `v`, e.g. v1.2.3
+      - v*
 
 permissions:
   contents: read
