@@ -33,7 +33,7 @@ from livechain.graph.types import (
     TTopic,
     WatchedValue,
 )
-from livechain.graph.utils import make_config_from_context, run_in_async_context
+from livechain.graph.utils import make_config_from_context
 
 logger = logging.getLogger(__name__)
 
@@ -219,37 +219,20 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
 
         return recv_decorator
 
-    @run_in_async_context
-    async def _publish_event(self, event: EventSignal):
-        return await self._context.publish_event(event)
-
-    @run_in_async_context
-    async def _trigger_workflow(self, trigger: TriggerSignal):
-        return await self._context.trigger_workflow(trigger)
-
-    @run_in_async_context
-    async def _mutate_state(self, state_patch: TState):
-        return await self._context.mutate_state(state_patch)
-
-    @run_in_async_context
-    async def _channel_send(self, topic: TTopic, data: Any):
-        return await self._context.channel_send(topic, data)
-
-    @run_in_async_context
-    async def _run_cron_job(self, cron_id: str):
-        return await self._context.run_cron_job(cron_id)
-
     def publish_event(self, event: EventSignal):
-        return asyncio.create_task(self._publish_event(event))
+        return self._context.publish_event(event)
 
     def trigger_workflow(self, trigger: TriggerSignal):
-        return asyncio.create_task(self._trigger_workflow(trigger))
+        return self._context.trigger_workflow(trigger)
 
     def mutate_state(self, state_patch: TState):
-        return asyncio.create_task(self._mutate_state(state_patch))
+        return self._context.mutate_state(state_patch)
 
     def channel_send(self, topic: TTopic, data: Any):
-        return asyncio.create_task(self._channel_send(topic, data))
+        return self._context.channel_send(topic, data)
+
+    def _run_cron_job(self, cron_id: str):
+        return self._context.run_cron_job(cron_id)
 
     def get_state(self) -> TState:
         return self._context.get_state()
@@ -258,7 +241,7 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
         scheduler = CronJobScheduler(cron_jobs=cron_jobs)
 
         async for cron_id in scheduler.schedule():
-            asyncio.create_task(self._run_cron_job(cron_id))
+            self._run_cron_job(cron_id)
 
     async def _stream_workflow(self, trigger: TriggerSignal, config: RunnableConfig):
         async for _part in self._workflow_entrypoint.astream(trigger, config=config):

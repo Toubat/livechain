@@ -1,5 +1,5 @@
 from inspect import iscoroutinefunction
-from typing import Any, Awaitable, Callable, Coroutine, Dict, Optional, overload
+from typing import Any, Awaitable, Callable, Dict, Optional, overload
 
 from langchain_core.runnables import RunnableConfig
 from langgraph.func import entrypoint
@@ -7,7 +7,6 @@ from pydantic import BaseModel
 
 from livechain.graph.constants import CONF, CONFIG_KEY_CONTEXT
 from livechain.graph.context import Context
-from livechain.graph.types import P, T
 
 
 def make_config(configurable: Dict[str, Any]) -> RunnableConfig:
@@ -69,16 +68,3 @@ def run_in_context(
         return arun_entrypoint
     else:
         return run_entrypoint
-
-
-def run_in_async_context(
-    func: Callable[P, Coroutine[Any, Any, T]],
-) -> Callable[P, Coroutine[Any, Any, T]]:
-    async def func_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-        @entrypoint()
-        async def run_async_in_context_wrapper(input: Any) -> T:
-            return await func(*args, **kwargs)
-
-        return await run_async_in_context_wrapper.ainvoke(1)  # type: ignore
-
-    return func_wrapper

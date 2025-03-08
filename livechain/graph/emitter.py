@@ -1,8 +1,9 @@
+import asyncio
 from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Set
 
 from pydantic import BaseModel, ConfigDict, PrivateAttr
 
-from livechain.graph.func.utils import step_gather
+from livechain.graph.func.utils import async_parallel
 from livechain.graph.types import T, THashable
 
 
@@ -29,16 +30,19 @@ class Emitter(BaseModel, Generic[THashable, T]):
             self._default_subscribers.add(callback)
         self._callback_to_hash[callback] = data
 
-    def emit(self, data: T):
+    def emit(self, data: T) -> asyncio.Task[Dict[str, Any]]:
         data_hash = self.get_hash(data)
         callbacks = self._subscribers.get(data_hash, [])
 
-        cb_tasks = [callback for callback in callbacks]
-        default_cb_tasks = [callback for callback in self._default_subscribers]
-        tasks = cb_tasks + default_cb_tasks
+        func_map: Dict[str, Callable[[T], Awaitable[Any]]] = {}
+        for i, callback in enumerate(callbacks):
+            func_map[f"{data_hash}_callback_{i}"] = callback
 
-        super_step = step_gather(*tasks)
-        return super_step(data)
+        for i, callback in enumerate(self._default_subscribers):
+            func_map[f"{data_hash}_default_callback_{i}"] = callback
+
+        runnable = async_parallel(func_map)
+        return asyncio.create_task(runnable.ainvoke(data))
 
     def unsubscribe(self, callback: Callable[[T], Awaitable[Any]]) -> None:
         if callback not in self._callback_to_hash:

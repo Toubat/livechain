@@ -1,6 +1,6 @@
-import asyncio
-from typing import Any, Awaitable, Callable, List
+from typing import Any, Awaitable, Callable, Dict
 
+from langchain_core.runnables import Runnable, RunnableLambda, RunnableParallel
 from langgraph.pregel.call import SyncAsyncFuture
 
 from livechain.graph.func import step
@@ -11,16 +11,24 @@ def wrap_in_step(func: Callable[P, Awaitable[T]]) -> Callable[P, SyncAsyncFuture
     return step()(func)
 
 
-def step_gather(
-    *funcs: Callable[P, Awaitable[T]],
-) -> Callable[P, SyncAsyncFuture[List[T]]]:
-    substeps = [wrap_in_step(func) for func in funcs]
+def async_parallel(
+    func_map: Dict[str, Callable[[T], Awaitable[Any]]],
+) -> Runnable[T, Dict[str, Any]]:
+    f = {k: RunnableLambda(func) for k, func in func_map.items()}
+    runnable = RunnableParallel[T](**f)  # type: ignore
+    return runnable
 
-    @step(name="gather")
-    async def gather_step(*args: P.args, **kwargs: P.kwargs) -> List[Any]:
-        return await asyncio.gather(
-            *[substep(*args, **kwargs) for substep in substeps],
-            return_exceptions=False,
-        )
 
-    return gather_step
+# def step_gather(
+#     *funcs: Callable[P, Awaitable[T]],
+# ) -> Callable[P, SyncAsyncFuture[List[T]]]:
+#     substeps = [wrap_in_step(func) for func in funcs]
+
+#     @step(name="gather")
+#     async def gather_step(*args: P.args, **kwargs: P.kwargs) -> List[Any]:
+#         return await asyncio.gather(
+#             *[substep(*args, **kwargs) for substep in substeps],
+#             return_exceptions=False,
+#         )
+
+#     return gather_step
