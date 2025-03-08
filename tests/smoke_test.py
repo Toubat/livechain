@@ -1,6 +1,5 @@
-import asyncio
+from time import sleep
 
-import pytest
 from pydantic import BaseModel
 
 from livechain.graph import EventSignal, Workflow, cron, reactive, root, step, subscribe
@@ -40,11 +39,9 @@ async def cron_fn():
     pass
 
 
-@pytest.mark.asyncio
-async def test_smoke_test():
-    wf = Workflow.from_nodes(root_fn, [event_signal_fn, reactive_fn, cron_fn])
-    executor = wf.compile(MyState)
+wf = Workflow.from_nodes(root_fn, [event_signal_fn, reactive_fn, cron_fn])
+executor = wf.compile(MyState)
 
-    executor.start()
-    await asyncio.sleep(1)
-    executor.stop()
+executor.start()
+sleep(1)
+executor.stop()
