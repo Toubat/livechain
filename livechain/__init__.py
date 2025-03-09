@@ -1,6 +1,6 @@
-__version__ = "0.1.0"
-
 # Import main modules
+# Import version
+from livechain.__about__ import __version__  # noqa: F401
 from livechain.graph import (  # noqa: F401
     constants,
     context,
@@ -30,4 +30,5 @@ __all__ = [
     "step",
     "subscribe",
     "reactive",
+    "__version__",
 ]

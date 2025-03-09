@@ -1,6 +1,6 @@
 [project]
 name = "livechain"
-version = "0.1.0"
+dynamic = ["version"]
 description = "A framework for building reactive realtime AI agents with LiveKit, LangGraph, and LangChain"
 authors = [{ name = "Brian Yin", email = "toubatbrian@gmail.com" }]
 requires-python = "~=3.12"
@@ -40,9 +40,9 @@ dev = [
 ]
 
 [project.urls]
-Documentation = "https://github.com/toubatbrian/livechain"
-Source = "https://github.com/toubatbrian/livechain"
-"Bug Tracker" = "https://github.com/toubatbrian/livechain/issues"
+Documentation = "https://github.com/Toubat/livechain"
+Source = "https://github.com/Toubat/livechain"
+"Bug Tracker" = "https://github.com/Toubat/livechain/issues"
 
 [build-system]
 requires = ["hatchling"]
@@ -50,6 +50,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["livechain"]
+
+[tool.hatch.version]
+path = "livechain/__about__.py"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

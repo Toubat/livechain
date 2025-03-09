@@ -7,20 +7,93 @@ on:
       - "v*.*.*"
 
 permissions:
-  contents: read
+  contents: write # Needed for creating commits
 
 jobs:
+  check-branch:
+    name: Check if tag is on main branch
+    runs-on: ubuntu-latest
+    outputs:
+      is_main: ${{ steps.check.outputs.is_main }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if tag is on main branch
+        id: check
+        run: |
+          # Get the commit that this tag points to
+          TAG_COMMIT=$(git rev-list -n 1 ${{ github.ref }})
+
+          # Check if this commit is on the main branch
+          if git branch -r --contains $TAG_COMMIT | grep -q 'origin/main'; then
+            echo "is_main=true" >> $GITHUB_OUTPUT
+            echo "Tag is on main branch"
+          else
+            echo "is_main=false" >> $GITHUB_OUTPUT
+            echo "Tag is NOT on main branch"
+          fi
+
   pypi-publish:
     name: Publish to PyPI
+    needs: check-branch
+    if: needs.check-branch.outputs.is_main == 'true'
     runs-on: ubuntu-latest
     environment:
       name: release
     permissions:
       id-token: write
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for tags
+          # Use PAT or GITHUB_TOKEN with permission to push
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: astral-sh/setup-uv@v3
-      - run: uv build
+
+      - name: Install hatch
+        run: uv pip install hatch
+
+      - name: Auto Release
+        id: auto_release
+        run: |
+          # Setup git
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          # Get current version using hatch
+          CURRENT_VERSION=$(hatch version)
+          echo "Current version: $CURRENT_VERSION"
+
+          # Extract the version from the tag (remove 'v' prefix)
+          TAG_VERSION=${GITHUB_REF#refs/tags/v}
+
+          # Set the version using hatch
+          hatch version "$TAG_VERSION"
+          echo "Set version to: $TAG_VERSION"
+
+          # Check if __about__.py was modified
+          if git diff --quiet livechain/__about__.py; then
+            echo "No changes to __about__.py, skipping commit"
+          else
+            # Commit the version change
+            git add livechain/__about__.py
+            git commit -m "Update version to $TAG_VERSION [skip ci]"
+
+            # Push the commit to the main branch
+            git push origin HEAD:main
+            echo "Pushed version update commit to main branch"
+          fi
+
+          # Export version for later steps
+          echo "VERSION=$TAG_VERSION" >> $GITHUB_ENV
+
+      - name: Build package
+        run: uv build
+
       # Check that basic features work and we didn't miss to include crucial files
       # - name: Smoke test (wheel)
       #   run: |
@@ -40,4 +113,6 @@ jobs:
       #     pip install $GITHUB_WORKSPACE/dist/*.tar.gz
       #     # Run the smoke test
       #     python $GITHUB_WORKSPACE/tests/smoke_test.py
-      - run: uv publish --trusted-publishing always
+
+      - name: Publish package
+        run: uv publish --trusted-publishing always
