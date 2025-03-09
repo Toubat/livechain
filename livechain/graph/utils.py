@@ -1,6 +1,7 @@
 from inspect import iscoroutinefunction
 from typing import Any, Awaitable, Callable, Dict, Optional, overload
 
+from langchain_core.callbacks.base import Callbacks
 from langchain_core.runnables import RunnableConfig
 from langgraph.func import entrypoint
 from pydantic import BaseModel
@@ -9,14 +10,15 @@ from livechain.graph.constants import CONF, CONFIG_KEY_CONTEXT
 from livechain.graph.context import Context
 
 
-def make_config(configurable: Dict[str, Any]) -> RunnableConfig:
-    return {CONF: configurable}
+def make_config(configurable: Dict[str, Any], callbacks: Callbacks = None) -> RunnableConfig:
+    return {CONF: configurable, "callbacks": callbacks}
 
 
 def make_config_from_context(
     context: Context,
     thread_id: Optional[str] = None,
     config: Optional[Dict[str, Any] | BaseModel] = None,
+    callbacks: Callbacks = None,
 ) -> RunnableConfig:
     if isinstance(config, BaseModel):
         config = config.model_dump()
@@ -29,7 +31,7 @@ def make_config_from_context(
     if config is not None:
         configurable.update(config)
 
-    return make_config(configurable)
+    return make_config(configurable, callbacks)
 
 
 @overload

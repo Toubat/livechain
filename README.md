@@ -31,7 +31,7 @@ from langgraph.graph import add_messages
 from pydantic import BaseModel, Field
 
 from livechain.graph.executor import Workflow
-from livechain.graph.func import reactive, root, step, subscribe
+from livechain.graph.func import reactive, root, step, subscribe, cron
 from livechain.graph.ops import channel_send, get_state, mutate_state
 from livechain.graph.types import EventSignal
 
@@ -76,8 +76,7 @@ async def entrypoint():
         await asyncio.sleep(1)
 
 # Create and run the workflow
-workflow = Workflow(entrypoint, [handle_user_chat])
-executor = workflow.compile()
+executor = Workflow.from_routines(entrypoint, [handle_user_chat]).compile(AgentState)
 
 @executor.recv("user_message")
 async def handle_user_message(message: str):

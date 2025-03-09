@@ -1,4 +1,3 @@
-from livechain.graph.func.nodes import cron, reactive, step, subscribe
-from livechain.graph.func.root import Root, root
+from livechain.graph.func.nodes import cron, reactive, root, step, subscribe
 
-__all__ = ["root", "step", "cron", "reactive", "subscribe", "Root"]
+__all__ = ["root", "step", "cron", "reactive", "subscribe"]

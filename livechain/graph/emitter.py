@@ -36,10 +36,10 @@ class Emitter(BaseModel, Generic[THashable, T]):
 
         func_map: Dict[str, Callable[[T], Awaitable[Any]]] = {}
         for i, callback in enumerate(callbacks):
-            func_map[f"{data_hash}_callback_{i}"] = callback
+            func_map[f"callback_{i}"] = callback
 
         for i, callback in enumerate(self._default_subscribers):
-            func_map[f"{data_hash}_default_callback_{i}"] = callback
+            func_map[f"default_callback_{i}"] = callback
 
         runnable = async_parallel(func_map)
         return asyncio.create_task(runnable.ainvoke(data))

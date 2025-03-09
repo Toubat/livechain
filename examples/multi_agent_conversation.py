@@ -109,7 +109,7 @@ async def entrypoint():
     chat()
 
 
-wf = Workflow.from_nodes(entrypoint, [on_user_chat])
+wf = Workflow.from_routines(entrypoint, [on_user_chat])
 
 
 async def main():

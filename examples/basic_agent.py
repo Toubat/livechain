@@ -123,7 +123,7 @@ async def entrypoint():
     await chat_with_user()
 
 
-workflow = Workflow.from_nodes(
+workflow = Workflow.from_routines(
     root=entrypoint,
     routines=[
         check_for_reminders,

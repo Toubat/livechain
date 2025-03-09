@@ -11,19 +11,23 @@ from livechain.graph.cron import CronExpr
 from livechain.graph.func.routine import (
     CronSignalRoutine,
     EventSignalRoutine,
+    Mode,
     ReactiveSignalRoutine,
     SignalRoutineRunner,
     SignalStrategy,
+    WorkflowSignalRoutine,
 )
 from livechain.graph.types import (
     CronEffect,
     CronSignal,
+    EntrypointFunc,
     P,
     ReactiveEffect,
     ReactiveSignal,
     Subscriber,
     T,
     TEvent,
+    TriggerSignal,
     TState,
     WatchedValue,
 )
@@ -126,3 +130,20 @@ def cron(
         )
 
     return cron_decorator
+
+
+def root(*, name: Optional[str] = None, retry: Optional[RetryPolicy] = None):
+    def root_decorator(func: EntrypointFunc) -> WorkflowSignalRoutine:
+        @wraps(func)
+        async def workflow_wrapper(trigger: TriggerSignal):
+            return await func()
+
+        return WorkflowSignalRoutine(
+            schema=TriggerSignal,
+            routine=workflow_wrapper,
+            strategy=Mode.Interrupt(),
+            name=name,
+            retry=retry,
+        )
+
+    return root_decorator

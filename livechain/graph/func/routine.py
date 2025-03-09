@@ -22,6 +22,7 @@ from livechain.graph.types import (
     T,
     TEvent,
     TModel,
+    TriggerSignal,
     TState,
     WatchedValue,
 )
@@ -59,6 +60,7 @@ class SignalRoutineType(str, Enum):
     SUBSCRIBE = "EventCallback"
     REACTIVE = "ReactiveEffect"
     CRON = "CronEffect"
+    WORKFLOW = "Workflow"
 
 
 def default_signal_strategy() -> Mode.Parallel:
@@ -146,6 +148,15 @@ class BaseSignalRoutine(Generic[TModel], ABC):
             config,
             self._name,
         )
+
+
+class WorkflowSignalRoutine(BaseSignalRoutine[TriggerSignal]):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    @property
+    def routine_type(self) -> SignalRoutineType:
+        return SignalRoutineType.WORKFLOW
 
 
 class EventSignalRoutine(BaseSignalRoutine[TEvent]):

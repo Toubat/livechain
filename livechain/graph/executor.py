@@ -2,25 +2,24 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Awaitable, Callable, Dict, Generic, List, Optional, Type, cast
+from typing import Any, Awaitable, Callable, Dict, Generic, List, Optional, Type, Union, cast
 
-from langchain_core.runnables import RunnableConfig
+from langchain_core.callbacks.base import Callbacks
 from langgraph.checkpoint.base import BaseCheckpointSaver
-from langgraph.pregel import Pregel
 from langgraph.store.base import BaseStore
 from pydantic import BaseModel, ConfigDict, PrivateAttr
 
 from livechain.graph.context import Context
 from livechain.graph.cron import CronExpr, CronJobScheduler
-from livechain.graph.func import Root
 from livechain.graph.func.routine import (
-    BaseSignalRoutine,
     CronSignalRoutine,
     EventSignalRoutine,
     ReactiveSignalRoutine,
     SignalRoutineRunner,
     SignalRoutineType,
+    WorkflowSignalRoutine,
 )
+from livechain.graph.func.utils import rename_function
 from livechain.graph.persist.base import BaseStatePersister
 from livechain.graph.types import (
     EventSignal,
@@ -37,19 +36,21 @@ from livechain.graph.utils import make_config_from_context
 
 logger = logging.getLogger(__name__)
 
+BackgroundRoutine = Union[EventSignalRoutine, CronSignalRoutine, ReactiveSignalRoutine]
+
 
 class Workflow(BaseModel, Generic[TState, TConfig, TTopic]):
-    root: Root
+    root: WorkflowSignalRoutine
 
-    routines: List[BaseSignalRoutine]
+    routines: List[BackgroundRoutine]
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @classmethod
-    def from_nodes(
+    def from_routines(
         cls,
-        root: Root,
-        routines: List[BaseSignalRoutine] | None = None,
+        root: WorkflowSignalRoutine,
+        routines: List[BackgroundRoutine] | None = None,
     ) -> Workflow:
         if routines is None:
             routines = []
@@ -93,8 +94,8 @@ class Workflow(BaseModel, Generic[TState, TConfig, TTopic]):
 
         return WorkflowExecutor(
             injectable=injectable,
-            workflow_entrypoint=self.root.entrypoint(injectable),
             context=context,
+            workflow_routine=self.root,
             event_routines=event_routines,
             cron_routines=cron_routines,
             reactive_routines=reactive_routines,
@@ -104,9 +105,9 @@ class Workflow(BaseModel, Generic[TState, TConfig, TTopic]):
 class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
     _injectable: LangGraphInjectable = PrivateAttr()
 
-    _workflow_entrypoint: Pregel = PrivateAttr()
-
     _context: Context[TState] = PrivateAttr()
+
+    _workflow_routine: WorkflowSignalRoutine = PrivateAttr()
 
     _event_routines: List[EventSignalRoutine[EventSignal]] = PrivateAttr()
 
@@ -125,16 +126,16 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
     def __init__(
         self,
         injectable: LangGraphInjectable,
-        workflow_entrypoint: Pregel,
         context: Context,
+        workflow_routine: WorkflowSignalRoutine,
         event_routines: List[EventSignalRoutine[EventSignal]],
         cron_routines: List[CronSignalRoutine],
         reactive_routines: List[ReactiveSignalRoutine[TState, Any]],
     ):
         super().__init__()
         self._injectable = injectable
-        self._workflow_entrypoint = workflow_entrypoint
         self._context = context
+        self._workflow_routine = workflow_routine
         self._event_routines = event_routines
         self._cron_routines = cron_routines
         self._reactive_routines = reactive_routines
@@ -143,6 +144,7 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
         self,
         thread_id: Optional[str] = None,
         config: Optional[TConfig | Dict[str, Any]] = None,
+        callbacks: Callbacks = None,
     ):
         if self._injectable.require_thread_id and thread_id is None:
             raise ValueError("Thread ID is required when using a checkpointer or store")
@@ -156,7 +158,7 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
             validated_config = config
 
         cron_jobs: Dict[str, CronExpr] = {}
-        runnable_config = make_config_from_context(self._context, thread_id, validated_config)
+        runnable_config = make_config_from_context(self._context, thread_id, validated_config, callbacks)
 
         for event_routine in self._event_routines:
             routine_runner = event_routine.create_runner(config=runnable_config, injectable=self._injectable)
@@ -175,8 +177,11 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
             self._runners.append(routine_runner)
             self._context.effects.subscribe(callback=conditional_callback)
 
-        # register a callback to trigger the main workflow and cancel any already running workflow
-        self._context.trigger.subscribe(callback=self._create_trigger_workflow_coroutine(runnable_config))
+        workflow_runner = self._workflow_routine.create_runner(config=runnable_config, injectable=self._injectable)
+        self._runners.append(workflow_runner)
+
+        # register a callback to trigger the main workflow
+        self._context.trigger.subscribe(callback=workflow_runner)
 
         self._executor_tasks = [
             asyncio.create_task(self._schedule_cron_jobs(cron_jobs)),
@@ -243,28 +248,12 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
         async for cron_id in scheduler.schedule():
             self._run_cron_job(cron_id)
 
-    async def _stream_workflow(self, trigger: TriggerSignal, config: RunnableConfig):
-        async for _part in self._workflow_entrypoint.astream(trigger, config=config):
-            ...
-
-    def _create_trigger_workflow_coroutine(
-        self,
-        config: RunnableConfig,
-    ) -> Callable[[TriggerSignal], Awaitable[None]]:
-        async def _stream_workflow(trigger: TriggerSignal):
-            if self._workflow_task is not None:
-                self._workflow_task.cancel()
-
-            self._workflow_task = asyncio.create_task(self._stream_workflow(trigger, config))
-            await self._workflow_task
-
-        return _stream_workflow
-
 
 def _with_cond(
     cond: WatchedValue[TState, Any],
     runner: SignalRoutineRunner[ReactiveSignal[TState]],
 ) -> Callable[[ReactiveSignal[TState]], Awaitable[None]]:
+    @rename_function(f"{SignalRoutineType.REACTIVE.value}<{runner.name}>")
     async def reactive_routine_wrapper(signal: ReactiveSignal[TState]):
         if cond(signal.old_state) == cond(signal.new_state):
             return

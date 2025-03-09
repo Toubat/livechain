@@ -39,7 +39,7 @@ async def cron_fn():
     pass
 
 
-wf = Workflow.from_nodes(root_fn, [event_signal_fn, reactive_fn, cron_fn])
+wf = Workflow.from_routines(root_fn, [event_signal_fn, reactive_fn, cron_fn])
 executor = wf.compile(MyState)
 
 executor.start()

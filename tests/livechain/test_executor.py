@@ -48,7 +48,7 @@ def simple_workflow():
     async def entrypoint():
         pass
 
-    return Workflow.from_nodes(entrypoint)
+    return Workflow.from_routines(entrypoint)
 
 
 def test_executor_init(simple_workflow):
@@ -97,7 +97,7 @@ async def test_executor_basic_workflow_invoked():
         nonlocal called
         called = True
 
-    workflow = Workflow.from_nodes(entrypoint)
+    workflow = Workflow.from_routines(entrypoint)
     executor = workflow.compile(state_schema=MockState)
 
     executor.start(thread_id="1", config=MockConfig(name="test"))
@@ -122,7 +122,7 @@ async def test_executor_single_event_routine():
     async def on_mock_event(event: MockEvent):
         await event_callback(event)
 
-    workflow = Workflow.from_nodes(entrypoint, [on_mock_event])
+    workflow = Workflow.from_routines(entrypoint, [on_mock_event])
     executor = workflow.compile(state_schema=MockState)
     executor.start()
 
@@ -145,7 +145,7 @@ async def test_executor_single_reactive_routine():
     async def on_count_change(old_state: MockState, new_state: MockState):
         await reactive_callback(old_state, new_state)
 
-    workflow = Workflow.from_nodes(entrypoint, [on_count_change])
+    workflow = Workflow.from_routines(entrypoint, [on_count_change])
     executor = workflow.compile(state_schema=MockState)
     executor.start()
 
@@ -173,7 +173,7 @@ async def test_executor_single_cron_routine():
     async def on_cron():
         await cron_callback()
 
-    workflow = Workflow.from_nodes(entrypoint, [on_cron])
+    workflow = Workflow.from_routines(entrypoint, [on_cron])
     executor = workflow.compile(state_schema=MockState)
     executor.start()
 
@@ -205,7 +205,7 @@ async def test_concurrent_event_and_cron_handling():
         nonlocal cron_counter
         cron_counter += 1
 
-    workflow = Workflow.from_nodes(entrypoint, [handle_event, background_task])
+    workflow = Workflow.from_routines(entrypoint, [handle_event, background_task])
     executor = workflow.compile(state_schema=MockState)
     executor.start()
 
@@ -237,7 +237,7 @@ async def test_complex_reactive_workflow():
         state_changes.append("high-priority")
         await mutate_state(priority="high")
 
-    workflow = Workflow.from_nodes(entrypoint, [handle_low_priority, handle_high_priority])
+    workflow = Workflow.from_routines(entrypoint, [handle_low_priority, handle_high_priority])
     executor = workflow.compile(state_schema=MockState)
     executor.start()
 
@@ -283,7 +283,7 @@ async def test_retry_mechanism_for_failed_steps():
         await callback()
         callback_done.set()
 
-    workflow = Workflow.from_nodes(entrypoint, [handle_event])
+    workflow = Workflow.from_routines(entrypoint, [handle_event])
     executor = workflow.compile(state_schema=MockState)
     executor.start()
 
@@ -320,10 +320,10 @@ async def test_multi_agent_communication():
             received_messages.append(data)
 
     # Create two executors
-    agent1 = Workflow.from_nodes(agent1_entrypoint, [agent1_handler])
+    agent1 = Workflow.from_routines(agent1_entrypoint, [agent1_handler])
     agent1_exec = agent1.compile(state_schema=MockState)
 
-    agent2 = Workflow.from_nodes(agent2_entrypoint)
+    agent2 = Workflow.from_routines(agent2_entrypoint)
     agent2_exec = agent2.compile(state_schema=MockState)
     agent2_setup(agent2_exec)
 
@@ -351,7 +351,7 @@ async def test_high_load_state_mutations():
         nonlocal mutation_count
         mutation_count += 1
 
-    workflow = Workflow.from_nodes(entrypoint, [count_handler])
+    workflow = Workflow.from_routines(entrypoint, [count_handler])
     executor = workflow.compile(state_schema=MockState)
     executor.start()
 
@@ -385,7 +385,7 @@ async def test_workflow_interruption_from_event_handler():
         # Trigger new workflow execution
         await trigger_workflow()
 
-    workflow = Workflow.from_nodes(entrypoint, [interrupt_handler])
+    workflow = Workflow.from_routines(entrypoint, [interrupt_handler])
     executor = workflow.compile(state_schema=MockState)
     executor.start()
 
