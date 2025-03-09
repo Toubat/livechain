@@ -55,7 +55,7 @@ jobs:
       - uses: astral-sh/setup-uv@v3
 
       - name: Install hatch
-        run: uv pip install hatch
+        run: pip install hatch
 
       - name: Auto Release
         id: auto_release
