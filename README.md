@@ -87,7 +87,17 @@ async def entrypoint():
         await asyncio.sleep(1)
 
 # Create and run the workflow
-executor = Workflow.from_routines(entrypoint, [handle_user_chat]).compile(AgentState)
+workflow = Workflow.from_routines(
+    root=entrypoint,
+    routines=[
+        handle_user_chat,
+        on_start,
+        run_every_5_seconds,
+    ],
+)
+
+# Compile the workflow
+executor = workflow.compile(AgentState)
 
 # Subscribe to a channel
 @executor.recv("user_message")
