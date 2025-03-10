@@ -16,23 +16,20 @@ classifiers = [
 ]
 keywords = ["ai", "llm", "realtime", "agent", "langgraph", "langchain"]
 dependencies = [
-    "livekit-agents",
     "langgraph",
     "langchain-core",
     "langchain-openai",
-    "python-dotenv",
-    "livekit-plugins-deepgram",
-    "livekit-plugins-openai",
-    "livekit-plugins-silero",
-    "livekit-plugins-turn-detector",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
-    "ipykernel>=6.29.5",
+    "aioconsole>=0.8.1",
+    "build>=1.2.2.post1",
     "pytest>=8.3.5",
     "pytest-asyncio>=0.25.3",
     "pytest-xdist>=3.6.1",
+    "twine>=6.1.0",
+    "ipykernel>=6.29.5",
     "black>=24.3.0",
     "isort>=5.13.2",
     "mypy>=1.9.0",
@@ -84,12 +81,3 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
-
-[dependency-groups]
-dev = [
-    "aioconsole>=0.8.1",
-    "build>=1.2.2.post1",
-    "pytest-asyncio>=0.25.3",
-    "pytest-xdist>=3.6.1",
-    "twine>=6.1.0",
-]
