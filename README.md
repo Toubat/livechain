@@ -71,10 +71,10 @@ def on_start(old_state: AgentState, new_state: AgentState):
     print("Agent has started")
 
 @cron(expr=interval(5))
-def run_every_5_seconds(old_state: AgentState, new_state: AgentState):
+def run_every_5_seconds():
     # cron node that will be called every 5 seconds
     print("Running every 5 seconds")
-    await channel_send("user_message", "Hello, how are you?")
+    await channel_send("last_message", get_state(AgentState).messages[-1].content)
 
 # Define the entry point
 @root()
