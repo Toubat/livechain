@@ -54,16 +54,27 @@ async def init_system_prompt(state: AgentState):
 
 @step()
 async def chat_with_user():
-    messages = await get_state(AgentState, lambda s: s.messages)
+    messages = await get_state(AgentState)
     llm = ChatOpenAI()
     response = await llm.ainvoke(messages)
     return {"messages": [response]}
 
-# Set up event handlers
+# Subscribe to a event signal
 @subscribe(UserChatEvent)
 async def handle_user_chat(event: UserChatEvent):
     await mutate_state({"messages": [event.message]})
     await channel_send("user_message", event.message.content)
+
+@reactive(AgentState, lambda state: state.has_started)
+def on_start(old_state: AgentState, new_state: AgentState):
+    # reactive node that will be called whenever state.has_started has changed
+    print("Agent has started")
+
+@cron(expr=interval(5))
+def run_every_5_seconds(old_state: AgentState, new_state: AgentState):
+    # cron node that will be called every 5 seconds
+    print("Running every 5 seconds")
+    await channel_send("user_message", "Hello, how are you?")
 
 # Define the entry point
 @root()
@@ -78,6 +89,7 @@ async def entrypoint():
 # Create and run the workflow
 executor = Workflow.from_routines(entrypoint, [handle_user_chat]).compile(AgentState)
 
+# Subscribe to a channel
 @executor.recv("user_message")
 async def handle_user_message(message: str):
     ...
