@@ -34,6 +34,15 @@ dev = [
     "mypy>=1.9.0",
     "ruff>=0.3.7",
 ]
+examples = [
+    "livekit-agents",
+    "livekit-plugins-deepgram",
+    "livekit-plugins-cartesia",
+    "livekit-plugins-openai",
+    "livekit-plugins-silero",
+    "livekit-plugins-turn-detector",
+    "python-dotenv",
+]
 
 [project.urls]
 Documentation = "https://github.com/Toubat/livechain"
