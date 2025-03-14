@@ -6,12 +6,12 @@ import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Type, Union
+from typing import Any, Awaitable, Callable, Dict, Optional, Type, Union
 
 from langchain_core.runnables import Runnable, RunnableConfig
 from langgraph.func import entrypoint
 from langgraph.types import RetryPolicy
-from pydantic import TypeAdapter, ValidationError
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from livechain.graph.constants import SENTINEL
 from livechain.graph.cron import CronExpr
@@ -21,7 +21,6 @@ from livechain.graph.types import (
     ReactiveSignal,
     T,
     TEvent,
-    TModel,
     TriggerSignal,
     TState,
     WatchedValue,
@@ -67,11 +66,11 @@ def default_signal_strategy() -> Mode.Parallel:
     return Mode.Parallel()
 
 
-class BaseSignalRoutine(Generic[TModel], ABC):
+class BaseSignalRoutine[T: BaseModel](ABC):
     def __init__(
         self,
-        schema: Type[TModel],
-        routine: Callable[[TModel], Awaitable[None]],
+        schema: Type[T],
+        routine: Callable[[T], Awaitable[None]],
         strategy: Optional[SignalStrategy] = None,
         name: Optional[str] = None,
         retry: Optional[RetryPolicy] = None,
@@ -88,7 +87,7 @@ class BaseSignalRoutine(Generic[TModel], ABC):
         raise NotImplementedError
 
     @property
-    def schema(self) -> Type[TModel]:
+    def schema(self) -> Type[T]:
         return self._schema
 
     @property
@@ -102,14 +101,14 @@ class BaseSignalRoutine(Generic[TModel], ABC):
     def create_routine_runnable(
         self,
         injectable: LangGraphInjectable | None = None,
-    ) -> Runnable[TModel, Any]:
+    ) -> Runnable[T, Any]:
         from livechain.graph.func import step
         from livechain.graph.func.utils import rename_function
 
         injectable = injectable or LangGraphInjectable.from_empty()
 
         @step(name=self._name, retry=self._retry)
-        async def routine_step(signal: TModel):
+        async def routine_step(signal: T):
             return await self._routine(signal)
 
         @entrypoint(
@@ -118,7 +117,7 @@ class BaseSignalRoutine(Generic[TModel], ABC):
             config_schema=injectable.config_schema,
         )
         @rename_function(self.routine_type.value)
-        async def routine_entrypoint(signal: TModel):
+        async def routine_entrypoint(signal: T):
             return await routine_step(signal)
 
         return routine_entrypoint
@@ -127,11 +126,11 @@ class BaseSignalRoutine(Generic[TModel], ABC):
         self,
         config: RunnableConfig | None = None,
         injectable: LangGraphInjectable | None = None,
-    ) -> SignalRoutineRunner[TModel]:
+    ) -> SignalRoutineRunner[T]:
         injectable = injectable or LangGraphInjectable.from_empty()
         routine_runnable = self.create_routine_runnable(injectable)
 
-        runner_cls: Optional[Type[SignalRoutineRunner[TModel]]] = {
+        runner_cls: Optional[Type[SignalRoutineRunner[T]]] = {
             Mode.Interrupt: InterruptableSignalRoutineRunner,
             Mode.Parallel: ParallelSignalRoutineRunner,
             Mode.Queue: FifoSignalRoutineRunner,
@@ -165,13 +164,13 @@ class EventSignalRoutine(BaseSignalRoutine[TEvent]):
         return SignalRoutineType.SUBSCRIBE
 
 
-class ReactiveSignalRoutine(BaseSignalRoutine[ReactiveSignal[TState]], Generic[TState, T]):
+class ReactiveSignalRoutine[TState: BaseModel, TValue](BaseSignalRoutine[ReactiveSignal[TState]]):
     def __init__(
         self,
         schema: Type[ReactiveSignal[TState]],
         routine: Callable[[ReactiveSignal[TState]], Awaitable[None]],
         state_schema: Type[TState],
-        cond: WatchedValue[TState, T],
+        cond: WatchedValue[TState, TValue],
         name: Optional[str] = None,
         strategy: Optional[SignalStrategy] = None,
         retry: Optional[RetryPolicy] = None,
@@ -185,7 +184,7 @@ class ReactiveSignalRoutine(BaseSignalRoutine[ReactiveSignal[TState]], Generic[T
         return SignalRoutineType.REACTIVE
 
     @property
-    def cond(self) -> WatchedValue[TState, T]:
+    def cond(self) -> WatchedValue[TState, TValue]:
         return self._cond
 
     @property
@@ -215,11 +214,11 @@ class CronSignalRoutine(BaseSignalRoutine[CronSignal]):
         return self._cron_expr
 
 
-class SignalRoutineRunner(Generic[TModel], ABC):
+class SignalRoutineRunner[T: BaseModel](ABC):
     def __init__(
         self,
-        schema: Type[TModel],
-        runnable: Runnable[TModel, None],
+        schema: Type[T],
+        runnable: Runnable[T, None],
         strategy: SignalStrategy,
         config: RunnableConfig,
         name: str,
@@ -233,7 +232,7 @@ class SignalRoutineRunner(Generic[TModel], ABC):
         self._signal_queue = asyncio.Queue()
 
     @property
-    def schema(self) -> Type[TModel]:
+    def schema(self) -> Type[T]:
         return self._schema
 
     @property
@@ -248,7 +247,7 @@ class SignalRoutineRunner(Generic[TModel], ABC):
     def strategy(self) -> SignalStrategy:
         return self._strategy
 
-    async def __call__(self, signal: TModel):
+    async def __call__(self, signal: T):
         try:
             adapter = TypeAdapter(self._schema)
             validated_signal = adapter.validate_python(signal)
@@ -265,7 +264,7 @@ class SignalRoutineRunner(Generic[TModel], ABC):
         raise NotImplementedError
 
 
-class InterruptableSignalRoutineRunner(SignalRoutineRunner[TModel]):
+class InterruptableSignalRoutineRunner[T: BaseModel](SignalRoutineRunner[T]):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -291,7 +290,7 @@ class InterruptableSignalRoutineRunner(SignalRoutineRunner[TModel]):
         self._signal_queue.put_nowait(SENTINEL)
 
 
-class ParallelSignalRoutineRunner(SignalRoutineRunner[TModel]):
+class ParallelSignalRoutineRunner[T: BaseModel](SignalRoutineRunner[T]):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -327,7 +326,7 @@ class ParallelSignalRoutineRunner(SignalRoutineRunner[TModel]):
         self._cancel_tasks()
 
 
-class FifoSignalRoutineRunner(SignalRoutineRunner[TModel]):
+class FifoSignalRoutineRunner[T: BaseModel](SignalRoutineRunner[T]):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -359,14 +358,14 @@ class FifoSignalRoutineRunner(SignalRoutineRunner[TModel]):
         try_cancel_asyncio_task(self._current_task)
 
 
-class DebounceSignalRoutineRunner(SignalRoutineRunner[TModel]):
+class DebounceSignalRoutineRunner[T: BaseModel](SignalRoutineRunner[T]):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._current_task: Optional[asyncio.Task] = None
         self._delay = self._strategy.delay  # type: ignore
         self._counter: int = 0
 
-    async def _process_with_delay(self, signal: TModel, counter: int):
+    async def _process_with_delay(self, signal: T, counter: int):
         await asyncio.sleep(self._delay)
         if counter == self._counter:
             await self._runnable.ainvoke(signal, config=self._config)
