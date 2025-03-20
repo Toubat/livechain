@@ -15,7 +15,7 @@ pip install livechain
 - Fully compatible with LangGraph-based workflows
 - LangChain-based AI agents
 - Ambient agents that can operate in the background and react to events in the environment
-- Real-time communication with LiveKit (soon)
+- Real-time communication with LiveKit （[example here](https://github.com/Toubat/livechain/blob/main/examples/basic_voice_agent.py))
 
 ## Usage
 
