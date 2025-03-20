@@ -83,6 +83,7 @@ async def root_routine():
 async def entrypoint(ctx: JobContext):
     logger.info(f"connecting to room {ctx.room.name}")
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
+    cache_key = ctx.room.name
 
     # wait for the first participant to connect
     participant = await ctx.wait_for_participant()
@@ -103,7 +104,7 @@ async def entrypoint(ctx: JobContext):
         await agent.say(stream)
 
     async def before_llm_cb(agent: VoicePipelineAgent, chat_ctx: ChatContext):
-        lc_messages = convert_chat_ctx_to_langchain_messages(chat_ctx)
+        lc_messages = convert_chat_ctx_to_langchain_messages(chat_ctx, cache_key)
         ev = UserChatEvent(messages=lc_messages)
 
         logger.info("publishing event")
