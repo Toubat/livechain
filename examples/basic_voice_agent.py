@@ -95,23 +95,18 @@ async def entrypoint(ctx: JobContext):
 
     @executor.recv("llm_stream")
     async def on_llm_stream(stream: AsyncGenerator[str, None]):
-        logger.info("on_llm_stream")
         llm_stream_q.put_nowait(stream)
 
     @executor.recv("reminder_stream")
     async def on_reminder_stream(stream: AsyncGenerator[str, None]):
-        logger.info("on_reminder_stream")
         await agent.say(stream)
 
     async def before_llm_cb(agent: VoicePipelineAgent, chat_ctx: ChatContext):
         lc_messages = convert_chat_ctx_to_langchain_messages(chat_ctx, cache_key)
         ev = UserChatEvent(messages=lc_messages)
 
-        logger.info("publishing event")
         await executor.publish_event(ev)
-        logger.info("getting stream")
         stream = await llm_stream_q.get()
-        logger.info("returning stream")
         return EchoStream(stream, chat_ctx=chat_ctx, fnc_ctx=None)
 
     agent = VoicePipelineAgent(
