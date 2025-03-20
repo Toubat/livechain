@@ -170,7 +170,7 @@ def convert_livekit_msgs_to_langchain_msgs(
 ) -> List[AnyMessage]:
     lc_msgs: List[AnyMessage] = []
 
-    for i, msg in enumerate(messages):
+    for _, msg in enumerate(messages):
         id = hash_msg(msg)
 
         if isinstance(msg.content, str):
@@ -225,7 +225,6 @@ def convert_livekit_msgs_to_langchain_msgs(
 
 
 class NoopLLM(llm.LLM):
-
     def chat(
         self,
         *,
