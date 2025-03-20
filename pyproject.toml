@@ -42,6 +42,7 @@ examples = [
     "livekit-plugins-silero",
     "livekit-plugins-turn-detector",
     "python-dotenv",
+    "langmem"
 ]
 
 [project.urls]
