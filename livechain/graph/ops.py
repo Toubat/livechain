@@ -1,9 +1,11 @@
+import asyncio
 from asyncio import Task
+from contextlib import asynccontextmanager
 from typing import Any, Dict, Literal, Optional, Type, overload
 
 from langgraph.config import get_config as get_langgraph_config
 
-from livechain.graph.constants import CONF, CONFIG_KEY_CONTEXT
+from livechain.graph.constants import CONF, CONFIG_KEY_CONTEXT, SENTINEL
 from livechain.graph.context import Context
 from livechain.graph.types import EventSignal, TConfig, TriggerSignal, TState
 
@@ -11,6 +13,7 @@ GraphOp = Literal[
     "get_state",
     "mutate_state",
     "channel_send",
+    "channel_stream",
     "publish_event",
     "trigger_workflow",
 ]
@@ -69,6 +72,30 @@ def _mutate_state(state_patch: Dict[str, Any]) -> Task[Dict[str, Any]]:
 def channel_send(topic: str, data: Any) -> OpResult:
     context = get_context("channel_send")
     return context.channel_send(topic, data)
+
+
+@asynccontextmanager
+async def channel_stream(topic: str):
+    context = get_context("channel_stream")
+    stream_q = asyncio.Queue()
+
+    async def generate_stream():
+        while True:
+            data = await stream_q.get()
+            if data == SENTINEL:
+                break
+            yield data
+
+    async def send_to_channel(data: Any):
+        await stream_q.put(data)
+
+    async_stream = generate_stream()
+    context.channel_send(topic, async_stream)
+
+    try:
+        yield send_to_channel
+    finally:
+        await send_to_channel(SENTINEL)
 
 
 def publish_event(event: EventSignal) -> OpResult:

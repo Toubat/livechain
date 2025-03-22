@@ -1,4 +1,5 @@
 import asyncio
+from typing import Any, AsyncGenerator
 from unittest.mock import AsyncMock, create_autospec
 
 import pytest
@@ -10,7 +11,7 @@ from pydantic import BaseModel, Field
 from livechain.graph.cron import interval
 from livechain.graph.executor import Workflow
 from livechain.graph.func import cron, reactive, root, step, subscribe
-from livechain.graph.ops import get_state, mutate_state, trigger_workflow
+from livechain.graph.ops import channel_stream, get_state, mutate_state, trigger_workflow
 from livechain.graph.types import EventSignal, TriggerSignal
 
 
@@ -397,3 +398,40 @@ async def test_workflow_interruption_from_event_handler():
 
     # Verify initial workflow was started but not completed
     assert execution_states == ["started", "started", "completed"]
+
+
+@pytest.mark.asyncio
+async def test_channel_stream():
+    stream_fut = asyncio.Future()
+
+    async def generate_async_stream():
+        for i in range(10):
+            await asyncio.sleep(0.1)
+            yield i
+
+    @root()
+    async def entrypoint():
+        async with channel_stream("test") as send:
+            async for data in generate_async_stream():
+                await send(data)
+
+    workflow = Workflow.from_routines(entrypoint)
+    executor = workflow.compile(state_schema=MockState)
+    executor.start()
+
+    @executor.recv("test")
+    async def on_data(data: Any):
+        stream_fut.set_result(data)
+
+    executor.trigger_workflow(TriggerSignal())
+    stream = await stream_fut
+
+    assert isinstance(stream, AsyncGenerator), "Channel received data should be an async generator"
+
+    expected = [i for i in range(10)]
+    actual = []
+
+    async for data in stream:
+        actual.append(data)
+
+    assert actual == expected, "Data should be the same as the data sent"
