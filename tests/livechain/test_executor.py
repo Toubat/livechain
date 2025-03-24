@@ -229,7 +229,7 @@ async def test_duplicated_subscribe():
 
     @subscribe(event_schema=MockEvent)
     async def handler(event: MockEvent):
-        await fn()
+        await fn(event)
 
     workflow = Workflow.from_routines(entrypoint, [handler, handler, handler])
     executor = workflow.compile(state_schema=MockState)
@@ -238,6 +238,7 @@ async def test_duplicated_subscribe():
     await executor.publish_event(MockEvent(name="test"))
     await asyncio.sleep(0.1)
     assert fn.call_count == 3, "Handler should have been called 3 times"
+    fn.assert_called_with(MockEvent(name="test"))
 
 
 @pytest.mark.asyncio
