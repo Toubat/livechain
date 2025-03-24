@@ -220,6 +220,27 @@ async def test_concurrent_event_and_cron_handling():
 
 
 @pytest.mark.asyncio
+async def test_duplicated_subscribe():
+    fn = AsyncMock()
+
+    @root()
+    async def entrypoint():
+        pass
+
+    @subscribe(event_schema=MockEvent)
+    async def handler(event: MockEvent):
+        await fn()
+
+    workflow = Workflow.from_routines(entrypoint, [handler, handler, handler])
+    executor = workflow.compile(state_schema=MockState)
+    executor.start()
+
+    await executor.publish_event(MockEvent(name="test"))
+    await asyncio.sleep(0.1)
+    assert fn.call_count == 3, "Handler should have been called 3 times"
+
+
+@pytest.mark.asyncio
 async def test_complex_reactive_workflow():
     """Tests a chained reactive workflow simulating decision-making"""
     state_changes = []
