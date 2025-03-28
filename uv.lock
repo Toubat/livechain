@@ -904,7 +904,7 @@ wheels = [
 
 [[package]]
 name = "langchain-core"
-version = "0.3.40"
+version = "0.3.48"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jsonpatch" },
@@ -915,9 +915,9 @@ dependencies = [
     { name = "tenacity" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4f/6b/7c3f5fa60639b885d8dbc932c37f0b0584ac5151ac6bdcd00b67b591e5e9/langchain_core-0.3.40.tar.gz", hash = "sha256:893a238b38491967c804662c1ec7c3e6ebaf223d1125331249c3cf3862ff2746", size = 528341 }
+sdist = { url = "https://files.pythonhosted.org/packages/13/f3/7dffb16b9245d333d5af381dd3b0130a0d4c652c22e386d0819e773c90f3/langchain_core-0.3.48.tar.gz", hash = "sha256:be4b2fe36d8a11fb4b6b13e0808b12aea9f25e345624ffafe1d606afb6059f21", size = 534337 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b7/01/b52e43f63261b5aae016cbe170bb5d8e8899770530075d11c1e45a07b97b/langchain_core-0.3.40-py3-none-any.whl", hash = "sha256:9f31358741f10a13db8531e8288b8a5ae91904018c5c2e6f739d6645a98fca03", size = 414346 },
+    { url = "https://files.pythonhosted.org/packages/66/06/4ddafa246b4f1b2017918237b681e884fd02d34b0cb3dcc802105b53872d/langchain_core-0.3.48-py3-none-any.whl", hash = "sha256:21e4fe84262b9c7ad8aefe7816439ede130893f8a64b8c965cd9695c2be91c73", size = 418651 },
 ]
 
 [[package]]
@@ -1002,20 +1002,21 @@ wheels = [
 
 [[package]]
 name = "langmem"
-version = "0.0.15"
+version = "0.0.16"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "langchain" },
     { name = "langchain-anthropic" },
+    { name = "langchain-core" },
     { name = "langchain-openai" },
     { name = "langgraph" },
     { name = "langgraph-checkpoint" },
     { name = "langsmith" },
     { name = "trustcall" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0f/f5/ba8a7481e42f7dcd8218196826163bb407d93bdc539952eff7d3ce446cee/langmem-0.0.15.tar.gz", hash = "sha256:3d613f2248179da6f23673990ebcd1ed29f82856d631143919da65edb11924cb", size = 797245 }
+sdist = { url = "https://files.pythonhosted.org/packages/47/9d/b5878d564f7479c7c3712ab9bbd7be6d29039b8a72a5c595d4c63480c07c/langmem-0.0.16.tar.gz", hash = "sha256:26f831c3dbb0010ed5828d582151515f533dad8faa388429323c7cc8e97445fc", size = 199291 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/45/05/96d17440eb75e6514e5285379d74bd1dfe4637a88a7ab9611019c4ef4960/langmem-0.0.15-py3-none-any.whl", hash = "sha256:929eecc84d7f18c2e9c77253a0dee608ee34a84b7b3f5f7a67a6958e3459f2c8", size = 55539 },
+    { url = "https://files.pythonhosted.org/packages/7b/e1/8f4b2f1f1c070b5a0c8812012e6c1b6c08fdedb931903ea40cd24b17bd02/langmem-0.0.16-py3-none-any.whl", hash = "sha256:8245c4ea9ece119bf20991fe63591ac69f5b69444175c7b853123cd83f6718e9", size = 60767 },
 ]
 
 [[package]]
@@ -1090,7 +1091,7 @@ dev = [
     { name = "twine", specifier = ">=6.1.0" },
 ]
 examples = [
-    { name = "langmem" },
+    { name = "langmem", specifier = ">=0.0.16" },
     { name = "livekit-agents" },
     { name = "livekit-plugins-cartesia" },
     { name = "livekit-plugins-deepgram" },
