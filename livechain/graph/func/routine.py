@@ -272,17 +272,18 @@ class InterruptableSignalRoutineRunner(SignalRoutineRunner[TModel]):
         self._current_task: Optional[asyncio.Task] = None
 
     async def _start_routine_with_interrupts(self):
-        while True:
-            signal = await self._signal_queue.get()
+        try:
+            while True:
+                signal = await self._signal_queue.get()
 
-            if signal is SENTINEL:
-                break
+                if signal is SENTINEL:
+                    break
 
+                try_cancel_asyncio_task(self._current_task)
+                self._current_task = asyncio.create_task(self._runnable.ainvoke(signal, config=self._config))
+        finally:
             try_cancel_asyncio_task(self._current_task)
-            self._current_task = asyncio.create_task(self._runnable.ainvoke(signal, config=self._config))
-
-        try_cancel_asyncio_task(self._current_task)
-        logger.info(f"Routine runner {self._name} of id {self.routine_id} stopped")
+            logger.info(f"Routine runner {self._name} of id {self.routine_id} stopped")
 
     async def start(self):
         await self._start_routine_with_interrupts()
@@ -305,19 +306,20 @@ class ParallelSignalRoutineRunner(SignalRoutineRunner[TModel]):
             try_cancel_asyncio_task(task)
 
     async def _start_routine_in_parallel(self):
-        while True:
-            signal = await self._signal_queue.get()
+        try:
+            while True:
+                signal = await self._signal_queue.get()
 
-            if signal is SENTINEL:
-                break
+                if signal is SENTINEL:
+                    break
 
-            task_id = uuid.uuid4()
-            task = asyncio.create_task(self._runnable.ainvoke(signal, config=self._config))
-            task.add_done_callback(lambda _, tid=task_id: self._on_task_done(tid))
-            self._tasks[task_id] = task
-
-        self._cancel_tasks()
-        logger.info(f"Routine runner {self._name} of id {self.routine_id} stopped")
+                task_id = uuid.uuid4()
+                task = asyncio.create_task(self._runnable.ainvoke(signal, config=self._config))
+                task.add_done_callback(lambda _, tid=task_id: self._on_task_done(tid))
+                self._tasks[task_id] = task
+        finally:
+            self._cancel_tasks()
+            logger.info(f"Routine runner {self._name} of id {self.routine_id} stopped")
 
     async def start(self):
         await self._start_routine_in_parallel()
@@ -334,22 +336,23 @@ class FifoSignalRoutineRunner(SignalRoutineRunner[TModel]):
         self._current_task: Optional[asyncio.Task] = None
 
     async def _start_routine_in_fifo(self):
-        while True:
-            signal = await self._signal_queue.get()
+        try:
+            while True:
+                signal = await self._signal_queue.get()
 
-            if signal is SENTINEL:
-                break
+                if signal is SENTINEL:
+                    break
 
-            try:
-                self._current_task = asyncio.create_task(self._runnable.ainvoke(signal, config=self._config))
-                await self._current_task
-            except asyncio.CancelledError:
-                pass
-            except Exception as e:
-                logger.error(f"Routine runner {self._name} of id {self.routine_id} received an exception: {e}")
-
-        try_cancel_asyncio_task(self._current_task)
-        logger.info(f"Routine runner {self._name} of id {self.routine_id} stopped")
+                try:
+                    self._current_task = asyncio.create_task(self._runnable.ainvoke(signal, config=self._config))
+                    await self._current_task
+                except asyncio.CancelledError:
+                    pass
+                except Exception as e:
+                    logger.error(f"Routine runner {self._name} of id {self.routine_id} received an exception: {e}")
+        finally:
+            try_cancel_asyncio_task(self._current_task)
+            logger.info(f"Routine runner {self._name} of id {self.routine_id} stopped")
 
     async def start(self):
         await self._start_routine_in_fifo()
@@ -372,18 +375,19 @@ class DebounceSignalRoutineRunner(SignalRoutineRunner[TModel]):
             await self._runnable.ainvoke(signal, config=self._config)
 
     async def start(self):
-        while True:
-            signal = await self._signal_queue.get()
-            self._counter += 1
+        try:
+            while True:
+                signal = await self._signal_queue.get()
+                self._counter += 1
 
-            if signal is SENTINEL:
-                break
+                if signal is SENTINEL:
+                    break
 
+                try_cancel_asyncio_task(self._current_task)
+                self._current_task = asyncio.create_task(self._process_with_delay(signal, self._counter))
+        finally:
             try_cancel_asyncio_task(self._current_task)
-            self._current_task = asyncio.create_task(self._process_with_delay(signal, self._counter))
-
-        try_cancel_asyncio_task(self._current_task)
-        logger.info(f"Routine runner {self._name} of id {self.routine_id} stopped")
+            logger.info(f"Routine runner {self._name} of id {self.routine_id} stopped")
 
     def stop(self):
         self._signal_queue.put_nowait(SENTINEL)

@@ -1,5 +1,6 @@
 import asyncio
 import functools
+from asyncio.log import logger
 from functools import wraps
 from typing import Awaitable, Callable, Optional, Type
 
@@ -48,8 +49,12 @@ def step(
 
         @task(name=func_name, retry=retry)
         async def step_wrapper_task(*args: P.args, **kwargs: P.kwargs) -> T:
-            result = await func(*args, **kwargs)  # type: ignore
-            return result
+            try:
+                result = await func(*args, **kwargs)  # type: ignore
+                return result
+            except asyncio.CancelledError:
+                logger.info(f"Step {func_name} was cancelled")
+                raise
 
         task_func = functools.update_wrapper(step_wrapper_task, func)
         return task_func  # type: ignore
