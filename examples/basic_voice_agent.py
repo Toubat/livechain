@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Annotated, AsyncGenerator, List
+from typing import Annotated, Any, AsyncGenerator, List
 
 from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, AnyMessage, HumanMessage
@@ -14,9 +14,9 @@ from pydantic import BaseModel, Field
 
 from examples.utils import EchoStream, NoopLLM, convert_chat_ctx_to_langchain_messages
 from livechain import cron, root, step, subscribe
-from livechain.graph.cron import interval
 from livechain.graph.executor import Workflow
-from livechain.graph.ops import channel_send, get_config, get_state, mutate_state, trigger_workflow
+from livechain.graph.func.routine import Mode
+from livechain.graph.ops import channel_send, get_config, get_state, mutate_state, publish_event, trigger_workflow
 from livechain.graph.types import EventSignal
 
 load_dotenv()
@@ -29,6 +29,7 @@ def prewarm(proc: JobProcess):
 
 class AgentState(BaseModel):
     messages: Annotated[List[AnyMessage], add_messages] = Field(default_factory=list)
+    has_reminded: bool = Field(default=False)
 
 
 class AgentConfig(BaseModel):
@@ -37,6 +38,14 @@ class AgentConfig(BaseModel):
 
 class UserChatEvent(EventSignal):
     messages: List[AnyMessage]
+
+
+class CreateReminderEvent(EventSignal):
+    reset: bool
+
+
+class RemindUserEvent(EventSignal):
+    should_remind: bool
 
 
 @step()
@@ -63,12 +72,30 @@ async def on_user_chat(event: UserChatEvent):
     await trigger_workflow()
 
 
-@cron(expr=interval(10))
-async def remind_user():
+@subscribe(CreateReminderEvent)
+async def on_speech_status_changed(event: CreateReminderEvent):
+    if event.reset:
+        await mutate_state(has_reminded=False)
+
+    publish_event(RemindUserEvent(should_remind=True))
+
+
+@subscribe(RemindUserEvent, strategy=Mode.Interrupt())
+async def on_remind_user(event: RemindUserEvent):
+    if not event.should_remind:
+        return
+
+    # debounce reminder
+    await asyncio.sleep(10)
+
+    # if reminder has already been sent, do not send again
+    if get_state(AgentState).has_reminded:
+        return
+
     user_message = HumanMessage(
         content="(Now user keep been silent for 10 seconds, check if user is still active, you would say:)"
     )
-    await mutate_state(messages=[user_message])
+    await mutate_state(messages=[user_message], has_reminded=True)
     stream = await call_llm()
     await channel_send("reminder_stream", stream)
 
@@ -89,7 +116,7 @@ async def entrypoint(ctx: JobContext):
     participant = await ctx.wait_for_participant()
     logger.info(f"starting voice assistant for participant {participant.identity}")
 
-    wf = Workflow.from_routines(root_routine, [on_user_chat, remind_user])
+    wf = Workflow.from_routines(root_routine, [on_user_chat, on_remind_user, on_speech_status_changed])
     executor = wf.compile(state_schema=AgentState, config_schema=AgentConfig)
     llm_stream_q = asyncio.Queue()
 
@@ -117,6 +144,30 @@ async def entrypoint(ctx: JobContext):
         turn_detector=turn_detector.EOUModel(),
         before_llm_cb=before_llm_cb,
     )
+
+    create_reminder_event = CreateReminderEvent(reset=False)
+    create_reset_event = CreateReminderEvent(reset=True)
+    cancel_reminder_event = RemindUserEvent(should_remind=False)
+
+    event_name_to_signal = {
+        "agent_speech_committed": create_reminder_event,
+        "agent_stopped_speaking": create_reminder_event,
+        "user_speech_committed": create_reset_event,
+        "user_stopped_speaking": create_reset_event,
+        "agent_started_speaking": cancel_reminder_event,
+        "user_started_speaking": cancel_reminder_event,
+        "agent_speech_interrupted": cancel_reminder_event,
+    }
+
+    def create_event_handler(event_name: str, signal: EventSignal):
+        def on_event(_: Any = None):
+            logger.info(f"publishing event {event_name}")
+            executor.publish_event(signal)
+
+        return on_event
+
+    for event_name, signal in event_name_to_signal.items():
+        agent.on(event_name, create_event_handler(event_name, signal))  # type: ignore
 
     executor.start(config=AgentConfig(name="Alex"))
     agent.start(ctx.room, participant)
