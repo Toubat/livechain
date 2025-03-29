@@ -471,3 +471,40 @@ async def test_channel_stream():
 
     assert actual == expected, "Data should be the same as the data sent"
     await executor.stop()
+
+
+async def test_channel_stream_error_in_middle_of_stream():
+    stream_fut = asyncio.Future()
+    error_msg = "Simulated error in stream"
+
+    async def generate_async_stream_with_error():
+        for i in range(5):
+            await asyncio.sleep(0.1)
+            yield i
+        raise ValueError(error_msg)
+
+    @root()
+    async def entrypoint():
+        async with channel_stream("test") as send:
+            async for data in generate_async_stream_with_error():
+                await send(data)
+
+    workflow = Workflow.from_routines(entrypoint)
+    executor = workflow.compile(state_schema=MockState)
+    executor.start()
+
+    @executor.recv("test")
+    async def on_data(data: Any):
+        stream_fut.set_result(data)
+
+    executor.trigger_workflow(TriggerSignal())
+    stream = await stream_fut
+
+    expected = [i for i in range(5)]
+    actual = []
+
+    async for data in stream:
+        actual.append(data)
+
+    assert actual == expected, "Should receive all data before the error"
+    await executor.stop()

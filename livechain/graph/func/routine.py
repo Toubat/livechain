@@ -381,7 +381,7 @@ class DebounceSignalRoutineRunner(SignalRoutineRunner[TModel]):
 
     async def _handle_signal(self, signal: TModel):
         await self._try_cancel_pending_task()
-        self._pending_task = asyncio.create_task(self._runnable.ainvoke(signal, config=self._config))
+        self._pending_task = asyncio.create_task(self._start_pending_task(signal))
 
     async def _handle_cleanup(self):
         await super()._handle_cleanup()
