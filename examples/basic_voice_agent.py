@@ -141,7 +141,7 @@ async def entrypoint(ctx: JobContext):
         stt=deepgram.STT(),
         llm=NoopLLM(),
         tts=openai.TTS(),
-        turn_detector=turn_detector.EOUModel(),
+        # turn_detector=turn_detector.EOUModel(),
         before_llm_cb=before_llm_cb,
     )
 
