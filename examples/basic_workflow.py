@@ -62,7 +62,7 @@ async def on_user_chat(event: UserChatEvent):
     await trigger_workflow()
 
 
-@subscribe(CreateReminderEvent)
+@subscribe(CreateReminderEvent, strategy=Mode.Queue())
 async def on_speech_status_changed(event: CreateReminderEvent):
     if event.reset:
         await mutate_state(has_reminded=False)
