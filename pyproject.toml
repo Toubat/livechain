@@ -35,12 +35,12 @@ dev = [
     "ruff>=0.3.7",
 ]
 examples = [
-    "livekit-agents",
-    "livekit-plugins-deepgram",
-    "livekit-plugins-cartesia",
-    "livekit-plugins-openai",
-    "livekit-plugins-silero",
-    "livekit-plugins-turn-detector",
+    "livekit-agents~=1.0rc",
+    "livekit-plugins-deepgram~=1.0rc",
+    "livekit-plugins-cartesia~=1.0rc",
+    "livekit-plugins-openai~=1.0rc",
+    "livekit-plugins-silero~=1.0rc",
+    "livekit-plugins-turn-detector~=1.0rc",
     "python-dotenv",
     "langmem>=0.0.16",
 ]
