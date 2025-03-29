@@ -4,10 +4,9 @@ import asyncio
 import logging
 import uuid
 from abc import ABC, abstractmethod
-from collections import deque
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Set, Type, Union, override
+from typing import Any, Awaitable, Callable, Generic, Optional, Set, Type, Union
 
 from langchain_core.runnables import Runnable, RunnableConfig
 from langgraph.func import entrypoint
@@ -16,11 +15,9 @@ from pydantic import TypeAdapter, ValidationError
 
 from livechain.aio.channel import Chan, ChanClosed
 from livechain.aio.utils import cancel_and_wait
-from livechain.graph.constants import SENTINEL
 from livechain.graph.cron import CronExpr
 from livechain.graph.types import (
     CronSignal,
-    EventSignal,
     LangGraphInjectable,
     ReactiveSignal,
     T,
@@ -353,7 +350,6 @@ class FifoSignalRoutineRunner(SignalRoutineRunner[TModel]):
 
 
 class DebounceSignalRoutineRunner(SignalRoutineRunner[TModel]):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

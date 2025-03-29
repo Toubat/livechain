@@ -1,4 +1,3 @@
-import asyncio
 from asyncio import Task
 from asyncio.log import logger
 from contextlib import asynccontextmanager
@@ -7,7 +6,7 @@ from typing import Any, Dict, Literal, Optional, Type, overload
 from langgraph.config import get_config as get_langgraph_config
 
 from livechain.aio.channel import Chan, ChanClosed
-from livechain.graph.constants import CONF, CONFIG_KEY_CONTEXT, SENTINEL
+from livechain.graph.constants import CONF, CONFIG_KEY_CONTEXT
 from livechain.graph.context import Context
 from livechain.graph.types import EventSignal, TConfig, TriggerSignal, TState
 
