@@ -108,6 +108,7 @@ async def test_executor_basic_workflow_invoked():
     await executor.trigger_workflow(TriggerSignal())
 
     assert called, "Step 1 should have been called"
+    await executor.stop()
 
 
 @pytest.mark.asyncio
@@ -131,6 +132,7 @@ async def test_executor_single_event_routine():
 
     event_callback.assert_called_once_with(MockEvent(name="test"))
     workflow_callback.assert_not_called()
+    await executor.stop()
 
 
 @pytest.mark.asyncio
@@ -160,6 +162,7 @@ async def test_executor_single_reactive_routine():
     await asyncio.sleep(0.2)
 
     assert executor.get_state().count == 1, "State should not have been updated"
+    await executor.stop()
 
 
 @pytest.mark.asyncio
@@ -183,6 +186,7 @@ async def test_executor_single_cron_routine():
 
     await asyncio.sleep(0.2)
     assert cron_callback.call_count == 2, "Cron should have been called twice"
+    await executor.stop()
 
 
 @pytest.mark.asyncio
@@ -217,6 +221,7 @@ async def test_concurrent_event_and_cron_handling():
 
     assert event_counter == 10, "All events should be processed"
     assert cron_counter >= 3, "Cron should have triggered multiple times"
+    await executor.stop()
 
 
 @pytest.mark.asyncio
@@ -240,6 +245,7 @@ async def test_duplicated_subscribe():
 
     assert fn.call_count == 3, "Handler should have been called 3 times"
     fn.assert_called_with(MockEvent(name="test"))
+    await executor.stop()
 
 
 @pytest.mark.asyncio
@@ -274,6 +280,7 @@ async def test_complex_reactive_workflow():
     await executor.mutate_state(MockState(count=5))
     await asyncio.sleep(0.1)
     assert state_changes == ["low-priority", "high-priority"]
+    await executor.stop()
 
 
 @pytest.mark.asyncio
@@ -317,6 +324,7 @@ async def test_retry_mechanism_for_failed_steps():
 
     assert attempts == 3, f"Should retry 3 times before succeeding, but only succeeded {attempts} times"
     callback.assert_called_once()
+    await executor.stop()
 
 
 @pytest.mark.asyncio
@@ -359,6 +367,8 @@ async def test_multi_agent_communication():
     await asyncio.sleep(0.2)
 
     assert received_messages == ["Processed test-msg"]
+    await agent1_exec.stop()
+    await agent2_exec.stop()
 
 
 @pytest.mark.asyncio
@@ -384,6 +394,7 @@ async def test_high_load_state_mutations():
 
     await asyncio.sleep(1)
     assert mutation_count == 100, "Should handle all state mutations"
+    await executor.stop()
 
 
 @pytest.mark.asyncio
@@ -421,6 +432,7 @@ async def test_workflow_interruption_from_event_handler():
 
     # Verify initial workflow was started but not completed
     assert execution_states == ["started", "started", "completed"]
+    await executor.stop()
 
 
 @pytest.mark.asyncio
@@ -458,3 +470,41 @@ async def test_channel_stream():
         actual.append(data)
 
     assert actual == expected, "Data should be the same as the data sent"
+    await executor.stop()
+
+
+async def test_channel_stream_error_in_middle_of_stream():
+    stream_fut = asyncio.Future()
+    error_msg = "Simulated error in stream"
+
+    async def generate_async_stream_with_error():
+        for i in range(5):
+            await asyncio.sleep(0.1)
+            yield i
+        raise ValueError(error_msg)
+
+    @root()
+    async def entrypoint():
+        async with channel_stream("test") as send:
+            async for data in generate_async_stream_with_error():
+                await send(data)
+
+    workflow = Workflow.from_routines(entrypoint)
+    executor = workflow.compile(state_schema=MockState)
+    executor.start()
+
+    @executor.recv("test")
+    async def on_data(data: Any):
+        stream_fut.set_result(data)
+
+    executor.trigger_workflow(TriggerSignal())
+    stream = await stream_fut
+
+    expected = [i for i in range(5)]
+    actual = []
+
+    async for data in stream:
+        actual.append(data)
+
+    assert actual == expected, "Should receive all data before the error"
+    await executor.stop()

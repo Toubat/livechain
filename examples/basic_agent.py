@@ -157,7 +157,7 @@ async def main():
         await asyncio.sleep(12)
 
     await asyncio.sleep(3)
-    executor.stop()
+    await executor.stop()
 
 
 if __name__ == "__main__":

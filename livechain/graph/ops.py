@@ -1,11 +1,12 @@
-import asyncio
 from asyncio import Task
+from asyncio.log import logger
 from contextlib import asynccontextmanager
 from typing import Any, Dict, Literal, Optional, Type, overload
 
 from langgraph.config import get_config as get_langgraph_config
 
-from livechain.graph.constants import CONF, CONFIG_KEY_CONTEXT, SENTINEL
+from livechain.aio.channel import Chan, ChanClosed
+from livechain.graph.constants import CONF, CONFIG_KEY_CONTEXT
 from livechain.graph.context import Context
 from livechain.graph.types import EventSignal, TConfig, TriggerSignal, TState
 
@@ -77,17 +78,22 @@ def channel_send(topic: str, data: Any) -> OpResult:
 @asynccontextmanager
 async def channel_stream(topic: str):
     context = get_context("channel_stream")
-    stream_q = asyncio.Queue()
+    stream_q = Chan[Any]()
 
     async def generate_stream():
         while True:
-            data = await stream_q.get()
-            if data == SENTINEL:
+            try:
+                data = await stream_q.recv()
+            except ChanClosed:
                 break
-            yield data
+            except Exception as e:
+                logger.error(f"Error receiving data from channel stream on {topic}: {e}")
+                raise e
+            else:
+                yield data
 
     async def send_to_channel(data: Any):
-        await stream_q.put(data)
+        await stream_q.send(data)
 
     async_stream = generate_stream()
     context.channel_send(topic, async_stream)
@@ -95,7 +101,7 @@ async def channel_stream(topic: str):
     try:
         yield send_to_channel
     finally:
-        await send_to_channel(SENTINEL)
+        stream_q.close()
 
 
 def publish_event(event: EventSignal) -> OpResult:

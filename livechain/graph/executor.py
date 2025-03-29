@@ -9,6 +9,7 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.store.base import BaseStore
 from pydantic import BaseModel, ConfigDict, PrivateAttr
 
+from livechain.aio.utils import cancel_and_wait
 from livechain.graph.context import Context
 from livechain.graph.cron import CronExpr, CronJobScheduler
 from livechain.graph.func.routine import (
@@ -115,7 +116,7 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
 
     _reactive_routines: List[ReactiveSignalRoutine[TState, Any]] = PrivateAttr()
 
-    _workflow_task: Optional[asyncio.Task] = PrivateAttr(default=None)
+    _workflow_task: Optional[asyncio.Task[None]] = PrivateAttr(default=None)
 
     _executor_tasks: List[asyncio.Task[None]] = PrivateAttr(default_factory=list)
 
@@ -190,18 +191,17 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
 
         asyncio.gather(*self._executor_tasks, return_exceptions=False)
 
-    def stop(self):
+    async def stop(self):
         logger.info("Stopping workflow")
         for runner in self._runners:
-            runner.stop()
+            await runner.stop()
 
         logger.info("Waiting for runners to stop")
-        for task in self._executor_tasks:
-            task.cancel()
+        await cancel_and_wait(*self._executor_tasks)
 
         logger.info("Cancelling workflow task")
         if self._workflow_task is not None:
-            self._workflow_task.cancel()
+            await cancel_and_wait(self._workflow_task)
 
         logger.info("Unsubscribing from events, effects, cron jobs, and trigger")
         self._context.events.unsubscribe_all()
