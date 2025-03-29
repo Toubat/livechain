@@ -249,7 +249,7 @@ async def test_runner_behavior_interrupt_mode():
     await done.wait()
 
     # Stop the runner
-    runner.stop()
+    await runner.stop()
     await runner_task
 
     # Order should be: start-long, start-short, end-short, start-last, end-last
@@ -299,7 +299,7 @@ async def test_runner_behavior_parallel_mode():
     await done.wait()
 
     # Stop the runner
-    runner.stop()
+    await runner.stop()
     await runner_task
 
     # Verify behavior: all tasks should start before any completes
@@ -356,7 +356,7 @@ async def test_runner_behavior_queue_mode():
     await done.wait()
 
     # Stop the runner
-    runner.stop()
+    await runner.stop()
     await runner_task
 
     # Verify behavior: tasks should be processed in order (FIFO)
@@ -412,7 +412,7 @@ async def test_runner_behavior_debounce_mode():
     await done.wait()
 
     # Stop the runner
-    runner.stop()
+    await runner.stop()
     await runner_task
 
     # Verify behavior: only the last two events in each debounce window should be executed

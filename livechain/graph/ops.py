@@ -80,11 +80,14 @@ async def channel_stream(topic: str):
     stream_q = asyncio.Queue()
 
     async def generate_stream():
-        while True:
-            data = await stream_q.get()
-            if data == SENTINEL:
-                break
-            yield data
+        try:
+            while True:
+                data = await stream_q.get()
+                if data == SENTINEL:
+                    break
+                yield data
+        finally:
+            await stream_q.put(SENTINEL)
 
     async def send_to_channel(data: Any):
         await stream_q.put(data)

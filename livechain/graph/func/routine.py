@@ -4,19 +4,23 @@ import asyncio
 import logging
 import uuid
 from abc import ABC, abstractmethod
+from collections import deque
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Type, Union
+from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Set, Type, Union, override
 
 from langchain_core.runnables import Runnable, RunnableConfig
 from langgraph.func import entrypoint
 from langgraph.types import RetryPolicy
 from pydantic import TypeAdapter, ValidationError
 
+from livechain.aio.channel import Chan, ChanClosed
+from livechain.aio.utils import cancel_and_wait
 from livechain.graph.constants import SENTINEL
 from livechain.graph.cron import CronExpr
 from livechain.graph.types import (
     CronSignal,
+    EventSignal,
     LangGraphInjectable,
     ReactiveSignal,
     T,
@@ -61,6 +65,12 @@ class SignalRoutineType(str, Enum):
     REACTIVE = "ReactiveEffect"
     CRON = "CronEffect"
     WORKFLOW = "Workflow"
+
+
+@dataclass
+class _TaskStatus:
+    task: asyncio.Task
+    has_started: bool = False
 
 
 def default_signal_strategy() -> Mode.Parallel:
@@ -230,7 +240,9 @@ class SignalRoutineRunner(Generic[TModel], ABC):
         self._strategy = strategy
         self._config = config
         self._name = name
-        self._signal_queue = asyncio.Queue()
+
+        self._routine_task: Optional[asyncio.Task] = None
+        self._signal_ch = Chan[TModel]()
 
     @property
     def schema(self) -> Type[TModel]:
@@ -252,17 +264,40 @@ class SignalRoutineRunner(Generic[TModel], ABC):
         try:
             adapter = TypeAdapter(self._schema)
             validated_signal = adapter.validate_python(signal)
-            await self._signal_queue.put(validated_signal)
+            await self._signal_ch.send(validated_signal)
         except ValidationError as e:
             logger.error(f"Routine runner {self._name} of id {self.routine_id} received invalid data: {e}")
 
     @abstractmethod
-    async def start(self):
+    async def _handle_signal(self, signal: TModel):
         raise NotImplementedError
 
-    @abstractmethod
-    def stop(self):
-        raise NotImplementedError
+    async def _handle_cleanup(self):
+        logger.info(f"Stopping routine runner {self._name} of id {self.routine_id}")
+
+    async def _routine_loop(self):
+        try:
+            while True:
+                try:
+                    signal = await self._signal_ch.recv()
+                    await self._handle_signal(signal)
+                except ChanClosed:
+                    break
+                except Exception as e:
+                    logger.error(f"Routine runner {self._name} of id {self.routine_id} received an exception: {e}")
+                    raise e
+        finally:
+            await self._handle_cleanup()
+
+    async def start(self):
+        self._routine_task = asyncio.create_task(self._routine_loop())
+        await self._routine_task
+
+    async def stop(self):
+        self._signal_ch.close()
+        if self._routine_task is not None:
+            await self._routine_task
+            self._routine_task = None
 
 
 class InterruptableSignalRoutineRunner(SignalRoutineRunner[TModel]):
@@ -271,62 +306,34 @@ class InterruptableSignalRoutineRunner(SignalRoutineRunner[TModel]):
 
         self._current_task: Optional[asyncio.Task] = None
 
-    async def _start_routine_with_interrupts(self):
-        try:
-            while True:
-                signal = await self._signal_queue.get()
+    async def _handle_signal(self, signal: TModel):
+        await try_cancel_asyncio_tasks(self._current_task)
+        self._current_task = asyncio.create_task(self._runnable.ainvoke(signal, config=self._config))
 
-                if signal is SENTINEL:
-                    break
-
-                try_cancel_asyncio_task(self._current_task)
-                self._current_task = asyncio.create_task(self._runnable.ainvoke(signal, config=self._config))
-        finally:
-            try_cancel_asyncio_task(self._current_task)
-            logger.info(f"Routine runner {self._name} of id {self.routine_id} stopped")
-
-    async def start(self):
-        await self._start_routine_with_interrupts()
-
-    def stop(self):
-        self._signal_queue.put_nowait(SENTINEL)
+    async def _handle_cleanup(self):
+        await super()._handle_cleanup()
+        await try_cancel_asyncio_tasks(self._current_task)
+        self._current_task = None
 
 
 class ParallelSignalRoutineRunner(SignalRoutineRunner[TModel]):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._tasks: Dict[uuid.UUID, asyncio.Task] = {}
+        self._tasks: Set[asyncio.Task] = set()
 
-    def _on_task_done(self, task_id: uuid.UUID):
-        self._tasks.pop(task_id)
+    def _on_task_done(self, task: asyncio.Task):
+        self._tasks.remove(task)
 
-    def _cancel_tasks(self):
-        for task in self._tasks.values():
-            try_cancel_asyncio_task(task)
+    async def _handle_signal(self, signal: TModel):
+        task = asyncio.create_task(self._runnable.ainvoke(signal, config=self._config))
+        task.add_done_callback(lambda _, t=task: self._on_task_done(t))
+        self._tasks.add(task)
 
-    async def _start_routine_in_parallel(self):
-        try:
-            while True:
-                signal = await self._signal_queue.get()
-
-                if signal is SENTINEL:
-                    break
-
-                task_id = uuid.uuid4()
-                task = asyncio.create_task(self._runnable.ainvoke(signal, config=self._config))
-                task.add_done_callback(lambda _, tid=task_id: self._on_task_done(tid))
-                self._tasks[task_id] = task
-        finally:
-            self._cancel_tasks()
-            logger.info(f"Routine runner {self._name} of id {self.routine_id} stopped")
-
-    async def start(self):
-        await self._start_routine_in_parallel()
-
-    def stop(self):
-        self._signal_queue.put_nowait(SENTINEL)
-        self._cancel_tasks()
+    async def _handle_cleanup(self):
+        await super()._handle_cleanup()
+        await try_cancel_asyncio_tasks(*self._tasks)
+        self._tasks.clear()
 
 
 class FifoSignalRoutineRunner(SignalRoutineRunner[TModel]):
@@ -335,65 +342,54 @@ class FifoSignalRoutineRunner(SignalRoutineRunner[TModel]):
 
         self._current_task: Optional[asyncio.Task] = None
 
-    async def _start_routine_in_fifo(self):
-        try:
-            while True:
-                signal = await self._signal_queue.get()
+    async def _handle_signal(self, signal: TModel):
+        self._current_task = asyncio.create_task(self._runnable.ainvoke(signal, config=self._config))
+        await self._current_task
 
-                if signal is SENTINEL:
-                    break
-
-                try:
-                    self._current_task = asyncio.create_task(self._runnable.ainvoke(signal, config=self._config))
-                    await self._current_task
-                except asyncio.CancelledError:
-                    pass
-                except Exception as e:
-                    logger.error(f"Routine runner {self._name} of id {self.routine_id} received an exception: {e}")
-        finally:
-            try_cancel_asyncio_task(self._current_task)
-            logger.info(f"Routine runner {self._name} of id {self.routine_id} stopped")
-
-    async def start(self):
-        await self._start_routine_in_fifo()
-
-    def stop(self):
-        self._signal_queue.put_nowait(SENTINEL)
-        try_cancel_asyncio_task(self._current_task)
+    async def _handle_cleanup(self):
+        await super()._handle_cleanup()
+        await try_cancel_asyncio_tasks(self._current_task)
+        self._current_task = None
 
 
 class DebounceSignalRoutineRunner(SignalRoutineRunner[TModel]):
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._current_task: Optional[asyncio.Task] = None
+
+        self._pending_task: Optional[asyncio.Task] = None
+        self._running_tasks: Set[asyncio.Task] = set()
         self._delay = self._strategy.delay  # type: ignore
-        self._counter: int = 0
 
-    async def _process_with_delay(self, signal: TModel, counter: int):
+    def _on_task_done(self, task: asyncio.Task):
+        self._running_tasks.remove(task)
+
+    async def _try_cancel_pending_task(self):
+        await try_cancel_asyncio_tasks(self._pending_task)
+        self._pending_task = None
+
+    async def _start_pending_task(self, signal: TModel):
         await asyncio.sleep(self._delay)
-        if counter == self._counter:
-            await self._runnable.ainvoke(signal, config=self._config)
 
-    async def start(self):
-        try:
-            while True:
-                signal = await self._signal_queue.get()
-                self._counter += 1
+        # reset pending task and create the running task
+        self._pending_task = None
+        task = asyncio.create_task(self._runnable.ainvoke(signal, config=self._config))
 
-                if signal is SENTINEL:
-                    break
+        # add the running task to the set, remove when done
+        self._running_tasks.add(task)
+        task.add_done_callback(lambda _, t=task: self._on_task_done(t))
 
-                try_cancel_asyncio_task(self._current_task)
-                self._current_task = asyncio.create_task(self._process_with_delay(signal, self._counter))
-        finally:
-            try_cancel_asyncio_task(self._current_task)
-            logger.info(f"Routine runner {self._name} of id {self.routine_id} stopped")
+    async def _handle_signal(self, signal: TModel):
+        await self._try_cancel_pending_task()
+        self._pending_task = asyncio.create_task(self._runnable.ainvoke(signal, config=self._config))
 
-    def stop(self):
-        self._signal_queue.put_nowait(SENTINEL)
-        try_cancel_asyncio_task(self._current_task)
+    async def _handle_cleanup(self):
+        await super()._handle_cleanup()
+        await try_cancel_asyncio_tasks(self._pending_task, *self._running_tasks)
+        self._running_tasks.clear()
+        self._pending_task = None
 
 
-def try_cancel_asyncio_task(task: Optional[asyncio.Task]):
-    if task is not None and not task.done():
-        task.cancel()
+async def try_cancel_asyncio_tasks(*tasks: asyncio.Task | None):
+    all_tasks = [t for t in tasks if t is not None]
+    await cancel_and_wait(*all_tasks)
