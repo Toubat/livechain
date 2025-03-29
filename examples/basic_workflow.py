@@ -2,7 +2,7 @@ import asyncio
 import logging
 from typing import List
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 from langchain_core.messages import AIMessage, AnyMessage, HumanMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
@@ -10,10 +10,18 @@ from pydantic import BaseModel, Field
 from livechain import root, step, subscribe
 from livechain.graph.executor import Workflow
 from livechain.graph.func.routine import Mode
-from livechain.graph.ops import channel_send, get_config, get_state, mutate_state, publish_event, trigger_workflow
+from livechain.graph.ops import (
+    channel_send,
+    channel_stream,
+    get_config,
+    get_state,
+    mutate_state,
+    publish_event,
+    trigger_workflow,
+)
 from livechain.graph.types import EventSignal
 
-load_dotenv()
+load_dotenv(find_dotenv())
 
 logger = logging.getLogger("basic_workflow")
 
@@ -40,21 +48,20 @@ class RemindUserEvent(EventSignal):
 
 
 @step()
-async def call_llm():
+async def call_llm(topic: str):
     state = get_state(AgentState)
     config = get_config(AgentConfig)
     llm = ChatOpenAI(model="gpt-4o-mini")
 
     system_message = AIMessage(
-        content=f"You are {config.name} a voice assistant created by LiveKit. Your interface with users will be voice."
+        content=(
+            f"You are {config.name} a voice assistant created by LiveKit. Your interface with users will be voice."
+        )
     )
 
-    async def stream_llm():
+    async with channel_stream(topic) as stream_send:
         async for chunk in llm.astream([system_message, *state.messages]):
-            yield chunk.content
-
-    llm_stream = stream_llm()
-    return llm_stream
+            await stream_send(chunk.content)
 
 
 @subscribe(UserChatEvent)
@@ -87,15 +94,13 @@ async def on_remind_user(event: RemindUserEvent):
         content="(Now user keep been silent for 10 seconds, check if user is still active, you would say:)"
     )
     await mutate_state(messages=[user_message], has_reminded=True)
-    stream = await call_llm()
-    await channel_send("reminder_stream", stream)
+    await call_llm("reminder_stream")
 
 
 @root()
 async def root_routine():
     logger.info("root routine")
-    stream = await call_llm()
-    await channel_send("llm_stream", stream)
+    await call_llm("llm_stream")
 
 
 def create_executor():

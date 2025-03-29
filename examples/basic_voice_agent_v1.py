@@ -4,7 +4,7 @@ import uuid
 from collections.abc import AsyncIterable
 from typing import Any, AsyncGenerator
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 from livekit.agents import (
     Agent,
     AgentSession,
@@ -31,7 +31,7 @@ from livechain.graph.types import EventSignal
 
 logger = logging.getLogger("basic-agent")
 
-load_dotenv()
+load_dotenv(find_dotenv())
 
 
 class MyAgent(Agent):
