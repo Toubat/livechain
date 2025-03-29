@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Any, AsyncGenerator, List
+from typing import Any, AsyncGenerator
 
 from dotenv import load_dotenv
 from livekit.agents import AutoSubscribe, JobContext, JobProcess, WorkerOptions, cli
