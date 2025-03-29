@@ -28,7 +28,7 @@ def prewarm(proc: JobProcess):
 
 
 class AgentState(BaseModel):
-    messages: Annotated[List[AnyMessage], add_messages] = Field(default_factory=list)
+    messages: List[AnyMessage] = Field(default_factory=list)
     has_reminded: bool = Field(default=False)
 
 
