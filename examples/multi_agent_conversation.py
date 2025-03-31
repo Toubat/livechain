@@ -146,7 +146,7 @@ async def main():
 
     for agent_type in keys:
         executor = agent_executors[agent_type]
-        executor.start(config=AgentConfig(agent_type=agent_type))
+        executor.start(thread_id="test", config=AgentConfig(agent_type=agent_type))
 
     first_agent_executor = agent_executors[keys[0]]
     first_agent_executor.trigger_workflow(TriggerSignal())
