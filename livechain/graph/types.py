@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Awaitable, Callable, Generic, Hashable, Optional, Protocol, Type, TypeVar
 
+from langchain_core.load.serializable import Serializable
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.store.base import BaseStore
 from pydantic import BaseModel, ConfigDict
@@ -25,40 +26,61 @@ T_cov = TypeVar("T_cov", covariant=True)
 EntrypointFunc = Callable[[], Awaitable[None]]
 
 
-class EventSignal(BaseModel):
+class EventSignal(Serializable):
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    @classmethod
+    def is_lc_serializable(cls) -> bool:
+        return True
 
 
 TEvent = TypeVar("TEvent", bound=EventSignal)
 
 
-class ReactiveSignal(BaseModel, Generic[TState]):
+class ReactiveSignal(Serializable, Generic[TState]):
     old_state: TState
     new_state: TState
 
+    @classmethod
+    def is_lc_serializable(cls) -> bool:
+        return True
 
-class CronSignal(BaseModel):
+
+class CronSignal(Serializable):
     cron_id: str
 
+    @classmethod
+    def is_lc_serializable(cls) -> bool:
+        return True
 
-class TopicSignal(BaseModel):
+
+class TopicSignal(Serializable):
     topic: str
     data: Any
 
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
-class TriggerSignal(BaseModel): ...
+    @classmethod
+    def is_lc_serializable(cls) -> bool:
+        return True
+
+
+class TriggerSignal(Serializable):
+    @classmethod
+    def is_lc_serializable(cls) -> bool:
+        return True
 
 
 class WatchedValue(Protocol, Generic[TState_contra, T_cov]):
-    def __call__(self, state: TState_contra) -> T_cov: ...
+    def __call__(self, __state: TState_contra) -> T_cov: ...
 
 
 class Subscriber(Protocol, Generic[TModel_contra]):
-    def __call__(self, event: TModel_contra) -> Awaitable[Any]: ...
+    def __call__(self, __event: TModel_contra) -> Awaitable[Any]: ...
 
 
 class ReactiveEffect(Protocol, Generic[TState_contra]):
-    def __call__(self, old_state: TState_contra, new_state: TState_contra) -> Awaitable[Any]: ...
+    def __call__(self, __old_state: TState_contra, __new_state: TState_contra) -> Awaitable[Any]: ...
 
 
 class CronEffect(Protocol):

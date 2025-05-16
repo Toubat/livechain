@@ -1,3 +1,4 @@
+import logging
 from typing import Any, Dict, Generic, Optional, Type
 
 from pydantic import BaseModel, PrivateAttr
@@ -5,6 +6,8 @@ from pydantic import BaseModel, PrivateAttr
 from livechain.graph.emitter import Emitter, emitter_factory
 from livechain.graph.persist.base import BaseStatePersister
 from livechain.graph.types import CronSignal, EventSignal, ReactiveSignal, TopicSignal, TriggerSignal, TState
+
+logger = logging.getLogger(__name__)
 
 
 def create_default_persister(state_schema: Type[TState]) -> BaseStatePersister[TState]:
@@ -41,24 +44,30 @@ class Context(BaseModel, Generic[TState]):
         self._persister = persister or create_default_persister(state_schema)
 
     def get_state(self) -> TState:
+        logger.debug("Getting state")
         return self._persister.get()
 
     def mutate_state(self, state_patch: TState | Dict[str, Any]):
+        logger.debug(f"Mutating state {state_patch}")
         prev_state = self._persister.get()
         curr_state = self._persister.set(state_patch)
         state_change = ReactiveSignal(old_state=prev_state, new_state=curr_state)
         return self._effect_emitter.emit(state_change)
 
     def channel_send(self, topic: str, data: Any):
+        logger.debug(f"Sending data to topic {topic} with data {data}")
         return self._topic_emitter.emit(TopicSignal(topic=topic, data=data))
 
     def publish_event(self, event: EventSignal):
+        logger.debug(f"Publishing event {event}")
         return self._event_emitter.emit(event)
 
     def trigger_workflow(self, trigger: TriggerSignal):
+        logger.debug(f"Triggering workflow {trigger}")
         return self._trigger_emitter.emit(trigger)
 
     def run_cron_job(self, cron_id: str):
+        logger.debug(f"Running cron job {cron_id}")
         return self._cron_job_emitter.emit(CronSignal(cron_id=cron_id))
 
     @property

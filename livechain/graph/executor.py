@@ -189,7 +189,7 @@ class WorkflowExecutor(BaseModel, Generic[TState, TConfig, TTopic]):
             *[asyncio.create_task(runner.start()) for runner in self._runners],
         ]
 
-        asyncio.gather(*self._executor_tasks, return_exceptions=False)
+        return asyncio.gather(*self._executor_tasks, return_exceptions=False)
 
     async def stop(self):
         logger.info("Stopping workflow")

@@ -117,6 +117,7 @@ class BaseSignalRoutine(Generic[TModel], ABC):
 
         @step(name=self._name, retry=self._retry)
         async def routine_step(signal: TModel):
+            logger.debug(f"Running routine {self._name} with signal {signal}")
             return await self._routine(signal)
 
         @entrypoint(

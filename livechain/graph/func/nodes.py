@@ -55,6 +55,9 @@ def step(
             except asyncio.CancelledError:
                 logger.info(f"Step {func_name} was cancelled")
                 raise
+            except Exception as e:
+                logger.error(f"Step {func_name} failed with error {e}")
+                raise
 
         task_func = functools.update_wrapper(step_wrapper_task, func)
         return task_func  # type: ignore

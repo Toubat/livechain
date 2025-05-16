@@ -1,3 +1,4 @@
+import logging
 from typing import Any, Dict, Type
 
 from langgraph.checkpoint.memory import MemorySaver
@@ -8,6 +9,8 @@ from pydantic import PrivateAttr
 from livechain.graph.persist.base import BaseStatePersister
 from livechain.graph.types import TState
 from livechain.graph.utils import make_config
+
+logger = logging.getLogger(__name__)
 
 CONFIG = make_config({"thread_id": "1"})
 
@@ -34,13 +37,33 @@ class LocalStatePersister(BaseStatePersister[TState]):
         self._graph = create_base_graph(state_schema)
 
     def _get(self) -> TState:
-        return self.state_schema.model_validate(self._graph.get_state(CONFIG).values)
+        logger.debug("Getting state from local persister")
+        raw_state = self._graph.get_state(CONFIG).values
+        logger.debug(f"Raw state: {raw_state}")
+
+        try:
+            validated_state = self.state_schema.model_validate(raw_state)
+            logger.debug(f"Validated state: {validated_state}")
+            return validated_state
+        except Exception as e:
+            logger.error(f"Error validating state: {e}")
+            raise e
 
     def _set(self, state: TState | Dict[str, Any]) -> TState:
         if isinstance(state, dict):
             state_patch = state
         else:
-            state_patch = self.state_schema.model_dump(state)
+            try:
+                state_patch = self.state_schema.model_dump(state)
+            except Exception as e:
+                logger.error(f"Error dumping state: {e}")
+                raise e
 
-        raw_state = self._graph.invoke(state_patch, CONFIG)
-        return self.state_schema.model_validate(raw_state)
+        try:
+            logger.debug(f"Patching state: {state_patch}")
+            raw_state = self._graph.invoke(state_patch, CONFIG)
+            logger.debug(f"Raw state: {raw_state}")
+            return self.state_schema.model_validate(raw_state)
+        except Exception as e:
+            logger.error(f"Error setting state: {e}")
+            raise e
